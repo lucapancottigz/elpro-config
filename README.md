@@ -18,7 +18,7 @@
   <a href="https://github.com/lucapancottigz/elpro-config/releases/latest"><img src="https://img.shields.io/github/v/release/lucapancottigz/elpro-config?label=version" alt="Dernière version"></a>
   <img src="https://img.shields.io/badge/plateforme-Windows%2010%20%7C%2011-blue" alt="Windows 10 | 11">
   <a href="https://github.com/lucapancottigz/elpro-config/releases"><img src="https://img.shields.io/github/downloads/lucapancottigz/elpro-config/total?label=t%C3%A9l%C3%A9chargements" alt="Téléchargements"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-green" alt="Licence MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-propri%C3%A9taire-red" alt="Licence propriétaire"></a>
 </p>
 
 ---
@@ -95,12 +95,16 @@ py -3.11 -m venv venv
 
 ## Avertissement
 
-Ce projet est un outil indépendant développé par GeoAzimut. Il n'est ni affilié à ELPRO Technologies ni approuvé par ELPRO Technologies. ELPRO, 415U et CConfig sont des marques de leurs propriétaires respectifs.
+Ce projet est un outil indépendant développé par Geoazimut SàRL. Il n'est ni affilié à ELPRO Technologies ni approuvé par ELPRO Technologies. ELPRO, 415U et CConfig sont des marques de leurs propriétaires respectifs.
 
 Les fichiers générés doivent être vérifiés par une personne qualifiée avant leur mise en service. Les logiques IO Plus sont livrées désactivées : il faut les activer volontairement sur chaque radio.
 
 ## Licence
 
-Distribué sous licence **MIT** : utilisation, modification et redistribution libres, sans garantie. Voir [LICENSE](LICENSE). Composants tiers : voir [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+**© 2026 [Geoazimut SàRL](https://geoazimut.com). Tous droits réservés.**
 
-© 2026 GeoAzimut
+L'application compilée peut être téléchargée et utilisée gratuitement. Le code source est publié pour consultation uniquement : toute copie, modification ou redistribution nécessite l'autorisation écrite de Geoazimut SàRL. Voir [LICENSE](LICENSE). Composants tiers : voir [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+---
+
+<p align="center">© 2026 <a href="https://geoazimut.com">Geoazimut SàRL</a> · Tous droits réservés</p>

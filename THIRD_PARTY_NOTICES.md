@@ -1,5 +1,7 @@
 # Composants tiers
 
+ELPRO Config est © 2026 Geoazimut SàRL, tous droits réservés (voir `LICENSE`). Les composants ci-dessous ne sont pas la propriété de Geoazimut SàRL.
+
 ELPRO Config utilise les composants suivants. Chacun reste soumis à sa propre licence.
 
 | Composant | Usage | Licence |
