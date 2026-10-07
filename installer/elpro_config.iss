@@ -1,4 +1,5 @@
-﻿; Installateur ELPRO Config (Inno Setup 6) — installation pour tous les utilisateurs
+﻿; Copyright (c) 2026 Geoazimut SàRL. Tous droits réservés.
+; Installateur ELPRO Config (Inno Setup 6) — installation pour tous les utilisateurs
 #define AppName "ELPRO Config"
 #define AppPublisher "GeoAzimut"
 #ifndef AppVersion
@@ -30,6 +31,17 @@ SolidCompression=yes
 WizardStyle=modern
 ; L'application doit être fermée avant une mise à jour
 CloseApplications=yes
+; Mentions légales
+AppCopyright=© 2026 Geoazimut SàRL. Tous droits réservés.
+AppPublisherURL=https://geoazimut.com
+AppSupportURL=https://geoazimut.com
+AppUpdatesURL=https://github.com/lucapancottigz/elpro-config/releases
+VersionInfoCompany=Geoazimut SàRL
+VersionInfoCopyright=© 2026 Geoazimut SàRL. Tous droits réservés.
+VersionInfoDescription=Installateur ELPRO Config
+VersionInfoProductName=ELPRO Config
+; Page « Contrat de licence » : l'utilisateur doit accepter avant d'installer
+LicenseFile=..\build\LICENSE.txt
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
@@ -42,6 +54,9 @@ Name: "startmenuicon"; Description: "Créer un raccourci dans le menu Démarrer"
 [Files]
 ; Tout le dossier produit par PyInstaller
 Source: "..\dist\ELPRO Config\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Licence et composants tiers, lisibles dans le dossier d'installation
+Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; {autodesktop} / {autoprograms} = bureau et menu Démarrer communs (tous les utilisateurs)

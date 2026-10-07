@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """Recette automatisée de l'interface (complément de test_engine.py, ne remplace pas la recette manuelle).
 Lancer depuis le dossier livrable :  python tests/ui_acceptance.py
 Pilote les vrais widgets en mode hors écran ; les boîtes de dialogue sont simulées."""
@@ -266,6 +267,29 @@ def main():
     F.ouvrir_fichier(hors)
     DOSSIERS_PROPOSES.clear()
     verifier(F.enregistrer() and not DOSSIERS_PROPOSES, 'fichier hors installation : Enregistrer sans boîte de dialogue')
+
+    print('Mentions légales')
+    from PySide6.QtWidgets import QLabel
+    from version import APP_COPYRIGHT, APP_WEBSITE
+    ouvertes = []
+    exec_dialog = QDialog.exec
+    QDialog.exec = lambda self: ouvertes.append(self) or 0    # fenêtres modales simulées
+    F.action_a_propos.trigger()
+    apropos = next((d for d in ouvertes if isinstance(d, dialogs.AboutDialog)), None)
+    verifier(apropos is not None, 'À propos : la fenêtre s\'ouvre (bouton « ? »)')
+    textes = [l.text() for l in apropos.findChildren(QLabel)] if apropos else []
+    verifier(any(t == APP_COPYRIGHT for t in textes), 'À propos : contient APP_COPYRIGHT')
+    verifier(any(f'href="{APP_WEBSITE}"' in t for t in textes) and apropos.lien.openExternalLinks(),
+             'À propos : lien cliquable vers https://geoazimut.com')
+    verifier(any(APP_VERSION in t for t in textes), 'À propos : contient APP_VERSION')
+    for titre in ('Licence', 'Composants tiers'):
+        ouvertes.clear(); MESSAGES.clear()
+        apropos.afficher_fichier(titre)
+        verifier(len(apropos.texte_fichier(titre)) > 100 and ouvertes and not dernier('warning'),
+                 f'À propos : bouton « {titre} » trouve son fichier, non vide')
+    QDialog.exec = exec_dialog
+    verifier('Geoazimut SàRL' in F.mention.text() and 'geoazimut.com' in F.mention.text()
+             and F.mention.parent() is not None, 'Barre d\'état : « © 2026 Geoazimut SàRL — geoazimut.com »')
 
     print('Page 2')
     F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))

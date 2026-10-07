@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """Tests de recette du moteur. Lancer :  python -m unittest discover -s tests -v   (depuis le dossier livrable)
 Tous les tests doivent passer avant toute livraison. Ne pas modifier les fichiers expected_*.json."""
 import os, sys, json, re, unittest, tempfile, tarfile

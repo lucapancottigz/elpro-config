@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """Page 2 : configuration générée, affichée façon CConfig (lecture seule) + exports."""
 import os
 

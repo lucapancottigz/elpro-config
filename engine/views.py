@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
 Vues prêtes à afficher, calculées à partir du plan (elpro_engine.calculer_plan).
 - vue_page2(plan)      -> arbre de pages façon CConfig (lecture seule)

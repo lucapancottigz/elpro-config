@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """Boîte d'ajout / modification d'un périphérique, et utilitaires d'affichage associés.
 Aucune règle métier ici : seules les plages de saisie de 03_Modele_de_donnees.md sont appliquées,
 la validation reste faite par elpro_engine.valider()."""
-import re
+import os, re
 
 from PySide6.QtCore import Qt, QRegularExpression
-from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator
+from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator, QPixmap
 from PySide6.QtWidgets import (QDialog, QFormLayout, QVBoxLayout, QComboBox, QLineEdit, QDoubleSpinBox,
-                               QSpinBox, QDialogButtonBox, QWidget, QLabel, QHBoxLayout)
+                               QSpinBox, QDialogButtonBox, QWidget, QLabel, QHBoxLayout, QPushButton,
+                               QPlainTextEdit, QMessageBox)
 
 import elpro_engine as M
+from version import APP_VERSION, APP_COPYRIGHT, APP_WEBSITE
 
 # Libellés à afficher, dans l'ordre de la table de 03_Modele_de_donnees.md
 LIBELLES = {
@@ -308,3 +311,92 @@ class DialoguePeripherique(QDialog):
                      hysteresis_ma=round(c['hysteresis_ma'].value(), 1), variation_ma=round(c['variation_ma'].value(), 1),
                      tmin_s=int(c['tmin_s'].value()))
         return p
+
+
+def site_affiche(url):
+    """'https://geoazimut.com' -> 'geoazimut.com'."""
+    return re.sub(r'^https?://', '', url).rstrip('/')
+
+
+class AboutDialog(QDialog):
+    """Fenêtre « À propos » : version, copyright, site web, licence et composants tiers.
+    Toutes les mentions viennent de version.py ; LICENSE et THIRD_PARTY_NOTICES.md sont lus dans `base`."""
+    FICHIERS = {'Licence': 'LICENSE', 'Composants tiers': 'THIRD_PARTY_NOTICES.md'}
+
+    def __init__(self, parent, base):
+        super().__init__(parent)
+        self.base = base
+        self.setWindowTitle("À propos d'ELPRO Config")
+        self.setFixedSize(420, 360)
+        lay = QVBoxLayout(self)
+        lay.setSpacing(6)
+
+        def ligne(texte, taille=None, gras=False, lien=False):
+            l = QLabel(texte)
+            l.setAlignment(Qt.AlignCenter)
+            l.setWordWrap(True)
+            if taille or gras:
+                f = l.font()
+                if taille:
+                    f.setPointSize(taille)
+                f.setBold(gras)
+                l.setFont(f)
+            if lien:
+                l.setTextFormat(Qt.RichText)
+                l.setOpenExternalLinks(True)
+            lay.addWidget(l)
+            return l
+
+        logo = QLabel()
+        logo.setAlignment(Qt.AlignCenter)
+        logo.setPixmap(QPixmap(os.path.join(base, 'resources', 'app_icon.png'))
+                       .scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        lay.addWidget(logo)
+        ligne('ELPRO Config', taille=16, gras=True)
+        ligne(f'Version {APP_VERSION}')
+        ligne('Génération de configurations standardisées pour radios ELPRO 415U-2-C4.')
+        ligne(APP_COPYRIGHT)
+        self.lien = ligne(f'<a href="{APP_WEBSITE}">{site_affiche(APP_WEBSITE)}</a>', lien=True)
+        ligne('Utilisation gratuite. Reproduction, modification et redistribution interdites sans '
+              'autorisation écrite de Geoazimut SàRL.', taille=8)
+        ligne('Outil indépendant, non affilié à ELPRO Technologies.', taille=8)
+        lay.addStretch(1)
+
+        boutons = QHBoxLayout()
+        for texte in self.FICHIERS:
+            b = QPushButton(texte)
+            b.clicked.connect(lambda _=False, t=texte: self.afficher_fichier(t))
+            boutons.addWidget(b)
+        boutons.addStretch(1)
+        fermer = QPushButton('Fermer')
+        fermer.setDefault(True)
+        fermer.clicked.connect(self.accept)
+        boutons.addWidget(fermer)
+        lay.addLayout(boutons)
+
+    def texte_fichier(self, titre):
+        """Contenu de LICENSE / THIRD_PARTY_NOTICES.md embarqué avec l'application ('' si absent)."""
+        chemin = os.path.join(self.base, self.FICHIERS[titre])
+        try:
+            with open(chemin, encoding='utf-8') as f:
+                return f.read()
+        except OSError:
+            return ''
+
+    def afficher_fichier(self, titre):
+        texte = self.texte_fichier(titre)
+        if not texte:
+            QMessageBox.warning(self, titre, f'Fichier introuvable : {self.FICHIERS[titre]}')
+            return
+        d = QDialog(self)
+        d.setWindowTitle(titre)
+        d.resize(640, 480)
+        v = QVBoxLayout(d)
+        zone = QPlainTextEdit(texte)
+        zone.setReadOnly(True)
+        v.addWidget(zone)
+        b = QDialogButtonBox(QDialogButtonBox.Close)
+        b.button(QDialogButtonBox.Close).setText('Fermer')
+        b.rejected.connect(d.reject)
+        v.addWidget(b)
+        d.exec()

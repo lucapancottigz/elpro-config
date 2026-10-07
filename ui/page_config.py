@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """Page 1 : saisie du projet (format 03_Modele_de_donnees.md).
 Les formulaires modifient directement le dict `self.projet`, et seulement les clés touchées par
 l'utilisateur : un fichier ouvert puis enregistré sans modification reste identique."""

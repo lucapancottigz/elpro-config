@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
 Moteur de génération ELPRO GeoAzimut — IMPLÉMENTATION DE RÉFÉRENCE.
 
@@ -11,6 +12,10 @@ Python 3.10+, bibliothèque standard uniquement.
 NE PAS MODIFIER LES RÈGLES de ce fichier : elles ont été validées sur radio.
 """
 import os, re, io, time, tarfile, secrets, string, datetime
+
+# Mentions légales (affichées dans l'application, le PDF et l'Excel)
+COPYRIGHT = '© 2026 Geoazimut SàRL. Tous droits réservés.'
+SITE_WEB = 'https://geoazimut.com'
 
 RESSOURCES = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'resources')
 

@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """Fenêtre principale : barre d'outils, onglets (Page 1 / Page 2), barre d'état."""
 import os, sys, json
 
 from PySide6.QtCore import Qt, QSettings, QTimer, QStandardPaths
 from PySide6.QtGui import QAction, QKeySequence
-from PySide6.QtWidgets import QMainWindow, QTabWidget, QToolBar, QFileDialog, QMessageBox, QLabel
+from PySide6.QtWidgets import (QMainWindow, QTabWidget, QToolBar, QFileDialog, QMessageBox, QLabel, QWidget,
+                               QSizePolicy)
 
 import elpro_engine as M
+from ui.dialogs import AboutDialog, site_affiche
 from ui.page_config import PageConfig, projet_vide
 from ui.page_result import PageResult
-from version import APP_VERSION
+from version import APP_VERSION, APP_COMPANY, APP_COPYRIGHT, APP_WEBSITE
 
 FILTRE_PROJET = 'Projet ELPRO (*.elpro.json);;Fichiers JSON (*.json)'
 
@@ -45,17 +48,36 @@ class MainWindow(QMainWindow):
                 a.setShortcut(raccourci)
             a.triggered.connect(action)
             bo.addAction(a)
+        # bouton « ? » calé à droite de la barre d'outils (pas de barre de menus)
+        ressort = QWidget(); ressort.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        bo.addWidget(ressort)
+        self.action_a_propos = QAction('?', self)
+        self.action_a_propos.setToolTip("À propos d'ELPRO Config")
+        self.action_a_propos.triggered.connect(self.a_propos)
+        bo.addAction(self.action_a_propos)
 
         self.etat = QLabel()
         self.etat.setTextFormat(Qt.RichText)
         self.etat.linkActivated.connect(lambda _: self._montrer_erreurs('Erreurs de configuration'))
         self.statusBar().addWidget(self.etat)
+        # mention de copyright permanente, à droite de la barre d'état
+        court = APP_COPYRIGHT.split(APP_COMPANY)[0] + APP_COMPANY          # « © 2026 Geoazimut SàRL »
+        self.mention = QLabel(f'{court} — <a href="{APP_WEBSITE}" style="color:gray;">'
+                              f'{site_affiche(APP_WEBSITE)}</a>')
+        self.mention.setTextFormat(Qt.RichText)
+        self.mention.setOpenExternalLinks(True)
+        self.mention.setStyleSheet('color: gray;')
+        f = self.mention.font(); f.setPointSize(8); self.mention.setFont(f)
+        self.statusBar().addPermanentWidget(self.mention)
         self._minuterie = QTimer(self); self._minuterie.setSingleShot(True); self._minuterie.setInterval(150)
         self._minuterie.timeout.connect(self._valider_en_direct)
 
         self.page_config.modifie.connect(self._sur_modification)
         self.page_config.generer.connect(self.generer)
         self._charger(projet_vide(), None)
+
+    def a_propos(self):
+        AboutDialog(self, self.base).exec()
 
     # ================================================================ état du document
     def _charger(self, projet, chemin, modifie=False):

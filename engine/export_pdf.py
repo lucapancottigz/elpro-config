@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """Compte rendu PDF de référence (reportlab). Entrée : views.donnees_pdf(plan)."""
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
@@ -8,6 +9,7 @@ from reportlab.platypus import (BaseDocTemplate, PageTemplate, Frame, Paragraph,
                                 PageBreak, KeepTogether)
 
 BLEU = colors.HexColor('#1F4E78')
+MENTION = '© 2026 Geoazimut SàRL — geoazimut.com'   # identique à elpro_engine.COPYRIGHT / SITE_WEB
 
 
 def ecrire_pdf(sections, chemin, titre_projet, sous_titre='Compte rendu de configuration radio ELPRO'):
@@ -21,10 +23,12 @@ def ecrire_pdf(sections, chemin, titre_projet, sous_titre='Compte rendu de confi
     def entete(c, d):
         c.saveState(); c.setFont('Helvetica', 7); c.setFillColor(colors.grey)
         c.drawString(15 * mm, 8 * mm, f'{titre_projet} — {sous_titre}')
+        c.drawCentredString(landscape(A4)[0] / 2, 8 * mm, MENTION)
         c.drawRightString(landscape(A4)[0] - 15 * mm, 8 * mm, f'Page {d.page}'); c.restoreState()
 
     doc = BaseDocTemplate(chemin, pagesize=landscape(A4), leftMargin=15 * mm, rightMargin=15 * mm,
-                          topMargin=12 * mm, bottomMargin=14 * mm, title=titre_projet)
+                          topMargin=12 * mm, bottomMargin=14 * mm, title=titre_projet,
+                          author='Geoazimut SàRL', creator='ELPRO Config — Geoazimut SàRL')
     doc.addPageTemplates([PageTemplate(frames=[Frame(15 * mm, 14 * mm, larg, landscape(A4)[1] - 26 * mm)], onPage=entete)])
 
     def tableau(col, lignes):

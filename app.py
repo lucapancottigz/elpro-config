@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """Point d'entrée de l'application ELPRO Config."""
 import sys, os
 BASE = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
@@ -14,7 +15,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from ui.main_window import MainWindow
-from version import APP_VERSION
+from version import APP_VERSION, APP_COPYRIGHT
 
 
 def verifier(dossier):
@@ -37,7 +38,7 @@ def verifier(dossier):
         except Exception:
             lignes.append(f'ÉCHEC {nom} :\n{traceback.format_exc()}')
     with open(os.path.join(dossier, 'verification.txt'), 'w', encoding='utf-8') as f:
-        f.write(f'ELPRO Config {APP_VERSION}\n' + '\n'.join(lignes) + '\n')
+        f.write(f'ELPRO Config {APP_VERSION}\n{APP_COPYRIGHT}\n' + '\n'.join(lignes) + '\n')
     return 0 if all(l.startswith('OK') for l in lignes) else 1
 
 
