@@ -2,6 +2,17 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.1.0] — 2026-10-09
+
+### Ajouté
+- Version de configuration incrémentée à chaque génération, version dans le nom de tous les fichiers générés.
+- Feu à 4 sorties (rouge, orange clignotant, orange fixe, vert).
+- Tous les périphériques sur la base, radar compris.
+
+### Modifié
+- Numérotation des commandes — vert 431–440, autres signalisations 441–450.
+- Accents retirés des noms de fichiers.
+
 ## [1.0.1] — 2026-10-07
 
 ### Modifié
@@ -24,4 +35,5 @@ Première version publique (retirée, remplacée par la 1.0.1).
 - Deux projets de démonstration fictifs (`demo_site_A`, `demo_site_B`).
 - Installateur Windows pour tous les utilisateurs, avec icône sur le bureau et raccourci dans le menu Démarrer (au choix).
 
+[1.1.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.1.0
 [1.0.1]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.0.1

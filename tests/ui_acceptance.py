@@ -124,9 +124,24 @@ def main():
     verifier(d.cb_type.findData('RADAR') >= 0, 'Radar proposé sur une remote')
     p1.tab_radios.selectRow(0)
     db = dialogs.DialoguePeripherique(p1, p1.projet, p1.radio_courante())
-    verifier(db.cb_type.findData('RADAR') < 0, 'Radar absent pour la base')
+    verifier(db.cb_type.findData('RADAR') >= 0 and db.cb_type.count() == len(dialogs.LIBELLES),
+             'base : tous les types proposés, Radar compris')
     dialogs.choisir(db.cb_type, 'FEU')
     verifier(db.ed_nom.text() == 'F4', 'feu : nom F4 (numérotation sur le site)')
+    libelles = [db.form.labelForField(db.champs[k]).text() for k in ('do_rouge', 'do_orange_cli', 'do_orange_fixe', 'do_vert')]
+    verifier(libelles == ['Sortie rouge', 'Sortie orange clignotant', 'Sortie orange fixe', 'Sortie verte'],
+             'feu : 4 listes rouge, orange clignotant, orange fixe, verte')
+    verifier([db.champs[k].currentData() for k in ('do_rouge', 'do_orange_cli', 'do_orange_fixe', 'do_vert')]
+             == [1, 2, None, None], 'feu : proposé rouge DO1, orange clignotant DO2, orange fixe et vert « aucune »')
+    verifier(all(db.champs[k].itemText(0) == 'aucune' for k in ('do_rouge', 'do_orange_cli', 'do_orange_fixe', 'do_vert')),
+             'feu : choix « aucune » sur les 4 listes')
+    dialogs.choisir(db.champs['do_orange_fixe'], 3); dialogs.choisir(db.champs['do_vert'], 4)
+    pf = db.peripherique()
+    verifier(pf == {'type': 'FEU', 'nom': 'F4', 'do_rouge': 1, 'do_orange_cli': 2, 'do_orange_fixe': 3, 'do_vert': 4},
+             'feu : périphérique à 4 sorties')
+    verifier(dialogs.texte_cablage(pf) == 'R DO1 · OC DO2 · OF DO3 · V DO4', 'feu : câblage « R DO1 · OC DO2 · OF DO3 · V DO4 »')
+    verifier(dialogs.texte_cablage(dict(pf, do_orange_cli=None, do_vert=None)) == 'R DO1 · OF DO3',
+             'feu : câblage limité aux sorties utilisées')
     dialogs.choisir(db.cb_type, 'LIDAR6')
     verifier([db.champs[f'di{k}'].currentData() for k in range(6)] == [1, 2, 3, 4, 5, 6], 'Lidar 6 : DI1–DI6 proposées')
     dialogs.choisir(db.champs['premiere'], 2)
@@ -316,9 +331,9 @@ def main():
     d_gl = os.path.join(tmp, 'sconf_demo_a'); os.makedirs(d_gl); REPONSES['dossier'] = d_gl; p2._export_sconf()
     verifier(all(os.path.getsize(os.path.join(tmp, f)) > 0 for f in ('demo_A.cdb', 'demo_A.pdf', 'demo_A.xlsx')),
              '.cdb, PDF et Excel créés')
-    verifier(PROPOSES == ['Demo_Site_A.cdb', 'Demo_Site_A_Compte_rendu.pdf', 'Demo_Site_A_Adresses.xlsx'],
-             'C3 : noms proposés Demo_Site_A.cdb / _Compte_rendu.pdf / _Adresses.xlsx')
-    verifier(sorted(os.listdir(d_gl)) == ['IOPlus_A-BASE_DESACTIVE.sconf'], 'demo_site_A : 1 .sconf (base)')
+    verifier(PROPOSES == ['Demo_Site_A_V1.0.cdb', 'Demo_Site_A_V1.0_Compte_rendu.pdf', 'Demo_Site_A_V1.0_Adresses.xlsx'],
+             'noms proposés Demo_Site_A_V1.0.cdb / _Compte_rendu.pdf / _Adresses.xlsx')
+    verifier(sorted(os.listdir(d_gl)) == ['IOPlus_A-BASE_V1.0_DESACTIVE.sconf'], 'demo_site_A : 1 .sconf (base)')
     verifier(dernier('box') and 'Fichiers créés' in dernier('box')[2], 'message de succès')
 
     # Excel verrouillé -> message propre
@@ -340,8 +355,120 @@ def main():
     F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
     F.generer()
     d_fr = os.path.join(tmp, 'sconf_fr'); os.makedirs(d_fr); REPONSES['dossier'] = d_fr; p2._export_sconf()
-    verifier(sorted(os.listdir(d_fr)) == ['IOPlus_B-BASE_DESACTIVE.sconf', 'IOPlus_B-SM3_DESACTIVE.sconf'],
+    verifier(sorted(os.listdir(d_fr)) == ['IOPlus_B-BASE_V1.0_DESACTIVE.sconf', 'IOPlus_B-SM3_V1.0_DESACTIVE.sconf'],
              'demo_site_B : 2 .sconf (B-BASE et B-SM3)')
+    cmd = {c['nom']: c['adresse'] for S in p2.plan['stations'] for c in S['commandes']}
+    verifier([cmd.get(f'B-F3_F3_{c}') for c in ('ROUGE', 'ORANGE_CLI', 'ORANGE_FIXE', 'VERT')] == [403, 413, 423, 433],
+             'demo_site_B : B-F3 commandes 403, 413, 423, 433')
+    verifier(min(a for n, a in cmd.items() if not n.endswith(('_ROUGE', '_ORANGE_CLI', '_ORANGE_FIXE', '_VERT'))) == 441,
+             'demo_site_B : autres signalisations à partir de 441')
+
+    print('Version de configuration')
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))
+    verifier(p1.ed_version.text() == 'V1.0' and p1.ed_version.isReadOnly()
+             and p1.lb_version.text() == 'Jamais générée — prochaine génération : V1.0', 'ouverture : V1.0, « Jamais générée »')
+    F.generer()
+    verifier(p1.projet['version_config'] == '1.0' and p1.lb_version.text() == 'À jour (dernière génération : V1.0)'
+             and F.statusBar().currentMessage() == 'Configuration générée — version V1.0 (aucune modification)',
+             'première génération : V1.0, « À jour »')
+    verifier(F.isWindowModified(), 'après génération : projet à enregistrer (*)')
+    F.generer()
+    verifier(p1.projet['version_config'] == '1.0', 'générer sans modification : reste V1.0')
+    p1.tab_radios.selectRow(2)
+    p1.sp_ip.setValue(150)
+    verifier(p1.lb_version.text() == 'Modification mineure — prochaine génération : V1.1', 'IP modifiée : libellé mineure V1.1')
+    F.generer()
+    verifier(p1.projet['version_config'] == '1.1' and p1.ed_version.text() == 'V1.1'
+             and F.statusBar().currentMessage() == 'Configuration générée — version V1.1 (modification mineure)',
+             'IP modifiée : V1.1')
+    REPONSES['question'] = QMessageBox.Yes
+    p1.tab_radios.selectRow(2)
+    p1._supprimer_periph(1)
+    REPONSES['question'] = QMessageBox.Discard
+    verifier(p1.lb_version.text() == 'Modification majeure — prochaine génération : V2.0'
+             and '#E67E00' in p1.lb_version.styleSheet(), 'périphérique supprimé : libellé majeure V2.0 (orange)')
+    F.generer()
+    verifier(p1.projet['version_config'] == '2.0'
+             and F.statusBar().currentMessage() == 'Configuration générée — version V2.0 (modification majeure)',
+             'périphérique supprimé : V2.0')
+    p1.bt_ajouter.click()
+    F.generer()
+    verifier(p1.projet['version_config'] == '3.0', 'radio ajoutée : V3.0')
+    nom = p1.projet['radios'][2]['nom']
+    p1.projet['radios'][2]['nom'] = p1.projet['radios'][1]['nom']
+    MESSAGES.clear()
+    F.generer()
+    verifier(dernier('warning') and 'même nom' in dernier('warning')[2] and p1.projet['version_config'] == '3.0',
+             'projet invalide (deux radios de même nom) : erreur, version inchangée')
+    p1.projet['radios'][2]['nom'] = nom
+    REPONSES['fichier'] = os.path.join(tmp, 'version.elpro.json')
+    F.enregistrer_sous()
+    F.ouvrir_fichier(REPONSES['fichier'])
+    verifier(p1.ed_version.text() == 'V3.0' and p1.lb_version.text() == 'À jour (dernière génération : V3.0)'
+             and not F.isWindowModified(), 'enregistrer puis rouvrir : V3.0, « À jour »')
+    F.generer()
+    PROPOSES.clear()
+    REPONSES['fichier'] = ''
+    p2._export_cdb()
+    verifier(PROPOSES == ['Demo_Site_A_V3.0.cdb'], 'export : nom du .cdb avec la version (V3.0)')
+    p1.sys['nom_projet'].setText('Test é à ç'); p1.sys['nom_projet'].textEdited.emit('Test é à ç')
+    F.generer()
+    PROPOSES.clear()
+    p2._export_cdb()
+    verifier(PROPOSES == ['Test_e_a_c_V3.1.cdb'], 'accents retirés : « Test é à ç » → Test_e_a_c_V3.1.cdb')
+
+    print('Feu à 4 sorties')
+    with open(os.path.join(ex, 'demo_site_A.json'), encoding='utf-8') as f:
+        ancien = json.load(f)
+    for r in ancien['radios']:
+        for pp in r['peripheriques']:
+            if pp['type'] == 'FEU':
+                pp['do_orange'] = pp.pop('do_orange_cli'); pp.pop('do_orange_fixe')
+    ancien_ch = os.path.join(tmp, 'ancien.elpro.json')
+    with open(ancien_ch, 'w', encoding='utf-8') as f:
+        json.dump(ancien, f, ensure_ascii=False, indent=2)
+    F.ouvrir_fichier(ancien_ch)
+    verifier(F.isWindowModified() and p1.ed_version.text() == 'V1.0', 'ancien projet (do_orange) : titre avec *, version V1.0')
+    p1.tab_radios.selectRow(2)                       # A-F1 : F1 rouge DO1, orange DO2
+    d = dialogs.DialoguePeripherique(p1, p1.projet, p1.radio_courante(), 0)
+    verifier(d.champs['do_orange_cli'].currentData() == 2 and d.champs['do_orange_fixe'].currentData() is None,
+             'ancien projet : l\'orange s\'affiche en « orange clignotant » (DO2)')
+    REPONSES['fichier'] = ancien_ch
+    F.enregistrer()
+    feux = [pp for r in json.load(open(ancien_ch, encoding='utf-8'))['radios'] for pp in r['peripheriques'] if pp['type'] == 'FEU']
+    verifier(feux and all('do_orange' not in pp and pp['do_orange_cli'] == 2 for pp in feux),
+             'ancien projet enregistré : do_orange_cli, plus de do_orange')
+    p1.projet['radios'][2]['peripheriques'][0].update(do_orange_cli=None, do_orange_fixe=None)
+    MESSAGES.clear()
+    F.generer()
+    verifier(dernier('warning') and 'au moins une sortie orange' in dernier('warning')[2], 'feu rouge seul : refusé par le moteur')
+    p1.projet['radios'][2]['peripheriques'][0]['do_orange_fixe'] = 2
+    MESSAGES.clear()
+    F.generer()
+    verifier(not dernier('warning') and p2.plan is not None, 'feu rouge + orange fixe : accepté')
+
+    print('Périphériques sur la base')
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
+    p1.tab_radios.selectRow(0)
+    dialogs.DialoguePeripherique.exec = lambda self: QDialog.Accepted
+    orig_init = dialogs.DialoguePeripherique.__init__
+
+    def init_radar(self, *a, **k):          # l'utilisateur choisit Radar sur AI1
+
+        orig_init(self, *a, **k)
+        dialogs.choisir(self.cb_type, 'RADAR'); dialogs.choisir(self.champs['ai'], 1)
+    dialogs.DialoguePeripherique.__init__ = init_radar
+    p1._ajouter_periph()
+    dialogs.DialoguePeripherique.__init__ = orig_init
+    dialogs.DialoguePeripherique.exec = orig_exec
+    verifier(p1.projet['radios'][0]['peripheriques'][-1]['type'] == 'RADAR', 'radar ajouté sur la base (AI1)')
+    MESSAGES.clear()
+    F.generer()
+    reg = {r['adresse']: r for r in p2.plan['registres']}
+    verifier(not dernier('warning') and 35201 in reg and reg[35201]['station'] == 'B-BASE',
+             'radar sur la base : pas d\'erreur, registre 35201 au nom de la base')
+    d_rb = os.path.join(tmp, 'sconf_radar_base'); os.makedirs(d_rb); REPONSES['dossier'] = d_rb; p2._export_sconf()
+    verifier(len(os.listdir(d_rb)) == 2, 'radar sur la base : toujours 2 fichiers .sconf')
 
     print('Import')
     REPONSES['fichier'] = os.path.join(tmp, 'demo_A.cdb')

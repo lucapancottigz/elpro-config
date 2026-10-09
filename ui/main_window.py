@@ -163,7 +163,15 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, 'Ouvrir un projet', f'Impossible d\'ouvrir {os.path.basename(chemin)} :\n{e}')
             return
         QSettings().setValue('dossier_projet', os.path.dirname(chemin))
-        self._charger(projet, chemin)
+        self._charger(projet, chemin, modifie=self._normaliser(projet))
+
+    @staticmethod
+    def _normaliser(projet):
+        """Mise à jour des projets d'un ancien format (ex. feu à 3 sorties -> orange clignotant).
+        True si le projet a changé : il doit être réenregistré au nouveau format (la version ne change pas)."""
+        avant = json.dumps(projet, sort_keys=True)
+        M.normaliser_projet(projet)
+        return json.dumps(projet, sort_keys=True) != avant
 
     def _dans_installation(self, chemin):
         """True si `chemin` est dans le dossier d'installation (Program Files : non inscriptible).
@@ -237,18 +245,32 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, 'Importer un .cdb', f'Impossible de lire {os.path.basename(chemin)} :\n{e}')
             return
         QSettings().setValue('dossier_projet', os.path.dirname(chemin))
+        self._normaliser(projet)
         self._charger(projet, None, modifie=True)
         if avertissements:
             QMessageBox.information(self, 'Import terminé', '\n'.join(avertissements))
 
     # ================================================================ génération
     def generer(self):
+        # validation avant tout : la version ne doit pas augmenter sur un échec
         if self._montrer_erreurs('Configuration incomplète'):
             return
+        projet = self.page_config.projet
         try:
-            plan = M.calculer_plan(self.page_config.projet)
+            # version de configuration : comparaison avec la dernière génération et incrément automatique
+            nouveau, niveau = M.preparer_generation(projet)
+            plan = M.calculer_plan(nouveau)
         except Exception as e:
             QMessageBox.critical(self, 'Configuration incomplète', str(e))
             return
+        # mise à jour sur place : les formulaires de la page 1 gardent leurs références vers le projet
+        avant = json.dumps(projet, sort_keys=True)
+        projet['version_config'] = nouveau['version_config']
+        projet['derniere_generation'] = nouveau['derniere_generation']
+        if json.dumps(projet, sort_keys=True) != avant:
+            self.setWindowModified(True)        # le fichier .elpro.json doit être enregistré
+        self.page_config.maj_version()
         self.page_result.afficher(plan)
         self.onglets.setCurrentIndex(1)
+        detail = {None: 'aucune modification', 'mineure': 'modification mineure', 'majeure': 'modification majeure'}[niveau]
+        self.statusBar().showMessage(f"Configuration générée — version V{plan['version_config']} ({detail})", 8000)

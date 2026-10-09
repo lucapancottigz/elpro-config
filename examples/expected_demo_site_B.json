@@ -24,69 +24,83 @@
   },
   {
    "adresse": 411,
-   "nom": "B-BASE_F1_ORANGE",
-   "type": "Commande feu orange",
+   "nom": "B-BASE_F1_ORANGE_CLI",
+   "type": "Commande feu orange clignotant",
    "station": "B-BASE",
    "description": "DO6"
   },
   {
    "adresse": 412,
-   "nom": "B-F2_F2_ORANGE",
-   "type": "Commande feu orange",
+   "nom": "B-F2_F2_ORANGE_CLI",
+   "type": "Commande feu orange clignotant",
    "station": "B-F2",
    "description": "DO2"
   },
   {
    "adresse": 413,
-   "nom": "B-F3_F3_ORANGE",
-   "type": "Commande feu orange",
+   "nom": "B-F3_F3_ORANGE_CLI",
+   "type": "Commande feu orange clignotant",
    "station": "B-F3",
    "description": "DO2"
   },
   {
-   "adresse": 431,
+   "adresse": 423,
+   "nom": "B-F3_F3_ORANGE_FIXE",
+   "type": "Commande feu orange fixe",
+   "station": "B-F3",
+   "description": "DO3"
+  },
+  {
+   "adresse": 433,
+   "nom": "B-F3_F3_VERT",
+   "type": "Commande feu vert",
+   "station": "B-F3",
+   "description": "DO4"
+  },
+  {
+   "adresse": 441,
    "nom": "B-BASE_SIRENE",
    "type": "Commande signalisation",
    "station": "B-BASE",
    "description": "DO7"
   },
   {
-   "adresse": 432,
+   "adresse": 442,
    "nom": "B-F2_SIRENE",
    "type": "Commande signalisation",
    "station": "B-F2",
    "description": "DO3"
   },
   {
-   "adresse": 433,
+   "adresse": 443,
    "nom": "B-CAM01_CAMON_SPOTON",
    "type": "Commande signalisation",
    "station": "B-CAM01",
    "description": "DO1+DO2"
   },
   {
-   "adresse": 434,
+   "adresse": 444,
    "nom": "B-SIR3_DO1",
    "type": "Commande signalisation",
    "station": "B-SIR3",
    "description": "DO1"
   },
   {
-   "adresse": 435,
+   "adresse": 445,
    "nom": "B-SIR3_SIRENE_FLASH",
    "type": "Commande signalisation",
    "station": "B-SIR3",
    "description": "DO2"
   },
   {
-   "adresse": 436,
+   "adresse": 446,
    "nom": "B-SIR4_SIRENE",
    "type": "Commande signalisation",
    "station": "B-SIR4",
    "description": "DO1"
   },
   {
-   "adresse": 437,
+   "adresse": 447,
    "nom": "B-SIR4_FLASH",
    "type": "Commande signalisation",
    "station": "B-SIR4",
@@ -909,7 +923,7 @@
        6
       ],
       [
-       431,
+       441,
        7
       ]
      ],
@@ -932,7 +946,7 @@
        2
       ],
       [
-       432,
+       442,
        3
       ]
      ],
@@ -953,6 +967,14 @@
       [
        413,
        2
+      ],
+      [
+       423,
+       3
+      ],
+      [
+       433,
+       4
       ]
      ],
      "inv": 0,
@@ -966,11 +988,11 @@
      "fail": 15506,
      "paires": [
       [
-       433,
+       443,
        1
       ],
       [
-       433,
+       443,
        2
       ]
      ],
@@ -985,11 +1007,11 @@
      "fail": 15507,
      "paires": [
       [
-       434,
+       444,
        1
       ],
       [
-       435,
+       445,
        2
       ]
      ],
@@ -1004,11 +1026,11 @@
      "fail": 15508,
      "paires": [
       [
-       436,
+       446,
        1
       ],
       [
-       437,
+       447,
        2
       ]
      ],
@@ -1058,7 +1080,7 @@
    "failsafe": [
     [
      401,
-     40
+     50
     ],
     [
      15101,
@@ -1431,10 +1453,10 @@
     "Din8": "MAINV",
     "Din1": "BT_ALARME",
     "Dot5": "F1_ROUGE",
-    "Dot6": "F1_ORANGE",
+    "Dot6": "F1_ORANGE_CLI",
     "Dot7": "SIRENE"
    },
-   "nb_tags": 61,
+   "nb_tags": 63,
    "groupes": [
     [
      "Alarmes",
@@ -1446,7 +1468,7 @@
     ],
     [
      "Signalisations",
-     13
+     15
     ],
     [
      "Status - MAINV",
@@ -1584,7 +1606,7 @@
    "iop": null,
    "noms_io": {
     "Dot1": "F2_ROUGE",
-    "Dot2": "F2_ORANGE",
+    "Dot2": "F2_ORANGE_CLI",
     "Dot3": "SIRENE"
    },
    "nb_tags": 5,
@@ -1618,13 +1640,15 @@
    "iop": null,
    "noms_io": {
     "Dot1": "F3_ROUGE",
-    "Dot2": "F3_ORANGE"
+    "Dot2": "F3_ORANGE_CLI",
+    "Dot3": "F3_ORANGE_FIXE",
+    "Dot4": "F3_VERT"
    },
-   "nb_tags": 4,
+   "nb_tags": 6,
    "groupes": [
     [
      "Signalisation",
-     2
+     4
     ],
     [
      "Statut",

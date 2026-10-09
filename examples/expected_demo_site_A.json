@@ -24,41 +24,41 @@
   },
   {
    "adresse": 411,
-   "nom": "A-F1_F1_ORANGE",
-   "type": "Commande feu orange",
+   "nom": "A-F1_F1_ORANGE_CLI",
+   "type": "Commande feu orange clignotant",
    "station": "A-F1",
    "description": "DO2"
   },
   {
    "adresse": 412,
-   "nom": "A-F2_F2_ORANGE",
-   "type": "Commande feu orange",
+   "nom": "A-F2_F2_ORANGE_CLI",
+   "type": "Commande feu orange clignotant",
    "station": "A-F2",
    "description": "DO2"
   },
   {
    "adresse": 413,
-   "nom": "A-F3_F3_ORANGE",
-   "type": "Commande feu orange",
+   "nom": "A-F3_F3_ORANGE_CLI",
+   "type": "Commande feu orange clignotant",
    "station": "A-F3",
    "description": "DO2"
   },
   {
-   "adresse": 431,
+   "adresse": 441,
    "nom": "A-SM1_CAM",
    "type": "Commande signalisation",
    "station": "A-SM1",
    "description": "DO7"
   },
   {
-   "adresse": 432,
+   "adresse": 442,
    "nom": "A-F1_SIRENE",
    "type": "Commande signalisation",
    "station": "A-F1",
    "description": "DO3"
   },
   {
-   "adresse": 433,
+   "adresse": 443,
    "nom": "A-F2_SIRENE",
    "type": "Commande signalisation",
    "station": "A-F2",
@@ -652,7 +652,7 @@
      "fail": 15502,
      "paires": [
       [
-       431,
+       441,
        7
       ]
      ],
@@ -675,7 +675,7 @@
        2
       ],
       [
-       432,
+       442,
        3
       ]
      ],
@@ -698,7 +698,7 @@
        2
       ],
       [
-       433,
+       443,
        3
       ]
      ],
@@ -752,7 +752,7 @@
    "failsafe": [
     [
      401,
-     40
+     50
     ],
     [
      15101,
@@ -1130,7 +1130,7 @@
    "noms_io": {
     "Din8": "MAINV",
     "Dot1": "F1_ROUGE",
-    "Dot2": "F1_ORANGE",
+    "Dot2": "F1_ORANGE_CLI",
     "Dot3": "SIRENE"
    },
    "nb_tags": 6,
@@ -1165,7 +1165,7 @@
    "noms_io": {
     "Din8": "MAINV",
     "Dot1": "F2_ROUGE",
-    "Dot2": "F2_ORANGE",
+    "Dot2": "F2_ORANGE_CLI",
     "Dot3": "SIRENE"
    },
    "nb_tags": 6,
@@ -1199,7 +1199,7 @@
    "iop": null,
    "noms_io": {
     "Dot1": "F3_ROUGE",
-    "Dot2": "F3_ORANGE"
+    "Dot2": "F3_ORANGE_CLI"
    },
    "nb_tags": 4,
    "groupes": [

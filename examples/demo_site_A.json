@@ -79,8 +79,9 @@
           "type": "FEU",
           "nom": "F1",
           "do_rouge": 1,
-          "do_orange": 2,
-          "do_vert": null
+          "do_vert": null,
+          "do_orange_cli": 2,
+          "do_orange_fixe": null
         },
         {
           "type": "SIRENE",
@@ -105,8 +106,9 @@
           "type": "FEU",
           "nom": "F2",
           "do_rouge": 1,
-          "do_orange": 2,
-          "do_vert": null
+          "do_vert": null,
+          "do_orange_cli": 2,
+          "do_orange_fixe": null
         },
         {
           "type": "SIRENE",
@@ -130,8 +132,9 @@
           "type": "FEU",
           "nom": "F3",
           "do_rouge": 1,
-          "do_orange": 2,
-          "do_vert": null
+          "do_vert": null,
+          "do_orange_cli": 2,
+          "do_orange_fixe": null
         }
       ],
       "titre_page": "A-F3 - Feu secondaire",

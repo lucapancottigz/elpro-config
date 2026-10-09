@@ -7,7 +7,7 @@ Onglet « 1. Configuration ». Il remplit le projet décrit dans `03_Modele_de_d
 | Bouton | Action |
 |---|---|
 | **Nouveau** | Demande confirmation si des modifications ne sont pas enregistrées, puis charge un projet vide : système par défaut, une seule radio `CA` de rôle base (`ip_octet` 100, MAINV DI8 actif), clé générée par `M.generer_cle()`. |
-| **Ouvrir…** | Filtre `Projet ELPRO (*.elpro.json)`. Charge le JSON dans les formulaires. |
+| **Ouvrir…** | Filtre `Projet ELPRO (*.elpro.json)`. Charge le JSON, appelle `M.normaliser_projet(projet)` (met à jour les fichiers d'un ancien format, ex. feu à 3 sorties), puis remplit les formulaires. Si la normalisation a changé quelque chose, le projet est marqué « non enregistré » (`*`). |
 | **Enregistrer** / **Enregistrer sous…** | Écrit le projet en JSON (`ensure_ascii=False, indent=2`). Le fichier se termine **toujours** par `.elpro.json` : après la boîte de dialogue, si le chemin finit par `.json` sans `.elpro.json`, remplacer `.json` par `.elpro.json` ; s'il n'a pas d'extension, ajouter `.elpro.json`. Nom proposé : `M.nom_fichier(nom_projet) + '.elpro.json'`. |
 | **Importer un .cdb…** | Filtre `CConfig (*.cdb)`. Appelle `M.importer_cdb(chemin)`. Si `M.ProjetProtege` est levée : message « Projet protégé par mot de passe : dans CConfig, enregistrer une copie sans protection ». Sinon, charger le projet retourné et afficher la liste des avertissements dans une boîte d'information. |
 
@@ -18,6 +18,7 @@ Le titre de la fenêtre affiche `ELPRO Config — <nom du fichier>` avec `*` si 
 ```
 ┌───────────────────────────── Système ─────────────────────────────┐
 │ Nom du projet [_____________]   System Name [____________]          │
+│ Version de configuration [V2.1]  À jour (…)                         │
 │ Clé de chiffrement [________________________] [Générer] [👁]        │
 │ Puissance générale [34 ▲▼] dBm                                      │
 │ Propriétaire [______] Contact [______] Localisation [______]        │
@@ -34,7 +35,7 @@ Le titre de la fenêtre affiche `ELPRO Config — <nom du fichier>` avec `*` si 
 
 ### Bloc « Système »
 
-Un champ par clé de `systeme`. La clé est masquée par défaut (bouton œil pour l'afficher) ; « Générer » la remplace après confirmation (« Toutes les radios devront être reprogrammées. Continuer ? »).
+Un champ par clé de `systeme`, plus la ligne **Version de configuration** : champ en lecture seule `V<M.version_config(projet)>` (jamais saisi : calculé à la génération) et libellé d'état calculé avec `M.classer_modification(projet['derniere_generation'], projet)` (« Jamais générée », « À jour », « Modification mineure/majeure — prochaine génération : V… »). Détail : `COMPLEMENT_V1.5.md`, étape 2. La clé est masquée par défaut (bouton œil pour l'afficher) ; « Générer » la remplace après confirmation (« Toutes les radios devront être reprogrammées. Continuer ? »).
 
 ### Liste des radios (tableau)
 
@@ -72,7 +73,7 @@ Tableau : `Type` (libellé), `Nom`, `Câblage` (ex. `DI3-DI5`, `DO1/DO2`, `AI1 �
 
 « + Ajouter un périphérique » ouvre une boîte de dialogue :
 
-1. Liste **Type** (libellés de la table de `03_Modele_de_donnees.md`). Pour la base, le type Radar n'est pas proposé.
+1. Liste **Type** (libellés de la table de `03_Modele_de_donnees.md`). Tous les types sont proposés pour toutes les radios, **base comprise** (y compris Radar).
 2. Champ **Nom** prérempli : `CABLE<n>`, `LIDAR`, `F<n>` (n = numéro du feu sur tout le site), `SIRENE`, `FLASH`, `CAM`, `SPOT`, `RADAR<n>`, `DO<n>`, `DI<n>`…
 3. Champs de câblage selon le type :
 
@@ -81,7 +82,7 @@ Tableau : `Type` (libellé), `Nom`, `Câblage` (ex. `DI3-DI5`, `DO1/DO2`, `AI1 �
 | CABLE, ALARME_BT, ENTREE | Entrée : liste DI1–DI8 |
 | LIDAR3 | Première entrée : DI1–DI6 ; les 3 entrées suivantes sont proposées (modifiables une par une) |
 | LIDAR6 | Première entrée : DI1–DI3 ; idem pour 6 entrées |
-| FEU | Sortie rouge, Sortie orange, Sortie verte (avec choix « aucune ») : listes DO1–DO8 |
+| FEU | 4 listes DO1–DO8 avec le choix « aucune » : **Sortie rouge**, **Sortie orange clignotant**, **Sortie orange fixe**, **Sortie verte**. Valeurs proposées à l'ajout : rouge DO1, orange clignotant DO2, orange fixe « aucune », verte « aucune ». Le rouge et au moins un des deux oranges sont obligatoires (contrôlé par `M.valider`) |
 | SIRENE, FLASH, SIRENE_FLASH, CAMERA, SPOT, SORTIE | Sortie : DO1–DO8 |
 | CAMERA_SPOT | Sortie caméra, Sortie spot : DO1–DO8 |
 | RADAR | Entrée analogique : AI1–AI4 ; Seuil haut (mA, 4,1–19,9, pas 0,1) ; Hystérésis (mA, défaut 0,8) ; Variation déclenchant un envoi (mA, défaut 0,8) ; Intervalle minimal entre envois (s, défaut 10) |
@@ -94,7 +95,13 @@ Dans les listes DI/DO/AI, les entrées déjà prises par un autre périphérique
 
 1. `erreurs = M.valider(projet)`.
 2. Si la liste n'est pas vide : boîte « Configuration incomplète » listant les erreurs (une par ligne), rester en page 1.
-3. Sinon : `plan = M.calculer_plan(projet)`, garder `plan` en mémoire, remplir la page 2, basculer sur l'onglet 2.
+3. Sinon :
+   1. `projet, niveau = M.preparer_generation(projet)` : calcule la nouvelle version (voir `03_Modele_de_donnees.md`, « Version de configuration ») ;
+   2. `plan = M.calculer_plan(projet)`, garder `plan` en mémoire, remplir la page 2, basculer sur l'onglet 2 ;
+   3. mettre à jour l'affichage **Version de configuration** ;
+   4. Après une génération réussie, si le projet a changé (première génération, ou version incrémentée) : marquer le projet « non enregistré » (`*`), car `derniere_generation` et la version doivent être enregistrées. Une nouvelle génération sans aucune modification ne marque pas le projet. Afficher dans tous les cas dans la barre d’état (8 s) « Configuration générée — version V<x.y> (modification majeure | mineure | aucune modification) ».
+
+   **Important :** la version et `derniere_generation` sont stockées dans le `.elpro.json`. Si l'utilisateur n'enregistre pas le projet après une génération, la génération suivante repartira de l'ancienne référence. À la fermeture ou à « Nouveau »/« Ouvrir », la demande de confirmation habituelle (« modifications non enregistrées ») couvre ce cas.
 
 ### Validation en direct (confort)
 

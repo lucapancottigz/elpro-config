@@ -186,7 +186,7 @@ class PageResult(QWidget):
     def _enregistrer(self, suffixe, filtre, ecrire):
         if self.plan is None:
             return
-        nom = M.nom_fichier(self.plan['systeme']['nom_projet']) + suffixe
+        nom = M.base_nom_fichier(self.plan) + suffixe      # ex. Demo_Site_A_V2.1.cdb
         chemin, _ = QFileDialog.getSaveFileName(self, 'Enregistrer sous', os.path.join(self._dossier(), nom), filtre)
         if not chemin:
             return
@@ -198,16 +198,20 @@ class PageResult(QWidget):
         self._memoriser(chemin)
         self._succes(f'Fichier créé : {os.path.normpath(chemin)}', os.path.dirname(chemin))
 
+    def _titre(self):
+        """Titre du PDF et en-tête de l'Excel : « Demo Site A — V2.1 »."""
+        return f"{self.plan['systeme']['nom_projet']} — V{self.plan['version_config']}"
+
     def _export_cdb(self):
         self._enregistrer('.cdb', 'CConfig (*.cdb)', lambda c: M.ecrire_cdb(self.plan, c))
 
     def _export_pdf(self):
         self._enregistrer('_Compte_rendu.pdf', 'PDF (*.pdf)',
-                          lambda c: PDF.ecrire_pdf(V.donnees_pdf(self.plan), c, self.plan['systeme']['nom_projet']))
+                          lambda c: PDF.ecrire_pdf(V.donnees_pdf(self.plan), c, self._titre()))
 
     def _export_excel(self):
         self._enregistrer('_Adresses.xlsx', 'Excel (*.xlsx)',
-                          lambda c: XL.ecrire_excel(V.donnees_excel(self.plan), c, self.plan['systeme']['nom_projet']))
+                          lambda c: XL.ecrire_excel(V.donnees_excel(self.plan), c, self._titre()))
 
     def _export_sconf(self):
         if self.plan is None:
@@ -216,10 +220,11 @@ class PageResult(QWidget):
         if not dossier:
             return
         crees = []
+        v = self.plan['version_config']
         try:
             for S in self.plan['stations']:
                 if S['iop']:
-                    crees.append(M.ecrire_sconf(S['iop'], os.path.join(dossier, f"IOPlus_{S['nom']}_DESACTIVE.sconf")))
+                    crees.append(M.ecrire_sconf(S['iop'], os.path.join(dossier, f"IOPlus_{S['nom']}_V{v}_DESACTIVE.sconf")))
         except Exception as e:
             self._echec(e)
             return

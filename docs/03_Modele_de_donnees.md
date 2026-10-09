@@ -5,8 +5,30 @@ La page 1 produit et relit **exactement** cette structure (`dict` Python, enregi
 ## Racine
 
 ```json
-{ "version": 1, "systeme": { … }, "radios": [ … ] }
+{ "version": 1, "version_config": "2.1", "derniere_generation": { … }, "systeme": { … }, "radios": [ … ] }
 ```
+
+| Clé | Type | Obligatoire | Défaut | Règle |
+|---|---|---|---|---|
+| `version` | entier | oui | `1` | Version du **format** de fichier. Ne pas confondre avec `version_config` |
+| `version_config` | texte `X.Y` | non | `"1.0"` | Version de la **configuration**. Calculée par le moteur, jamais saisie (voir ci-dessous) |
+| `derniere_generation` | objet | non | absent | Copie de `systeme` + `radios` au moment de la dernière génération. Écrite par `M.preparer_generation`, ne pas modifier |
+
+### Version de configuration
+
+À chaque clic sur **Générer la configuration**, l'interface appelle `projet, niveau = M.preparer_generation(projet)` **avant** `M.calculer_plan(projet)`. Le moteur compare le projet à `derniere_generation` :
+
+| Modification depuis la dernière génération | Niveau | Exemple |
+|---|---|---|
+| Radio ajoutée, supprimée ou déplacée dans la liste | majeure | 2.3 → **3.0** |
+| Périphérique ajouté, supprimé ou remplacé par un autre type | majeure | 2.3 → **3.0** |
+| Surveillance MAINV activée ou désactivée | majeure | 2.3 → **3.0** |
+| Tout autre changement : entrée/sortie d'un périphérique, entrée MAINV, IP, puissance, rôle, amont, renommage, inversion, textes, clé… | mineure | 2.3 → **2.4** |
+| Aucun changement | — | 2.3 reste 2.3 |
+
+- Première génération d'un projet (pas de `derniere_generation`) : la version reste `version_config` (1.0 par défaut).
+- Un renommage de radio est mineur : une radio est considérée comme renommée si son ancien nom a disparu et qu'elle occupe la même position.
+- Tous les fichiers générés portent la version dans leur nom : préfixe `M.base_nom_fichier(plan)` = `<nom_projet>_V<version>`.
 
 ## `systeme`
 
@@ -53,7 +75,7 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 | `ALARME_BT` | Alarme bouton/BT | `di`: liste de 1 entier | `{"type":"ALARME_BT","nom":"BT_ALARME","di":[1]}` |
 | `ENTREE` | Entrée générique | `di`: liste de 1 entier | |
 | `RADAR` | Radar (4-20 mA) | `ai`: 1 à 4 ; `seuil_haut_ma` ; `hysteresis_ma` (déf. 0.8) ; `variation_ma` (déf. 0.8) ; `tmin_s` (déf. 10) | `{"type":"RADAR","nom":"RADAR1","ai":1,"seuil_haut_ma":12.0,"hysteresis_ma":0.8,"variation_ma":0.8,"tmin_s":10}` |
-| `FEU` | Feu | `do_rouge`, `do_orange` (obligatoires), `do_vert` (entier ou `null`) | `{"type":"FEU","nom":"F1","do_rouge":1,"do_orange":2,"do_vert":null}` |
+| `FEU` | Feu | `do_rouge` (obligatoire), `do_orange_cli` (orange clignotant), `do_orange_fixe` (orange fixe), `do_vert` : entier ou `null`. Au moins un des deux oranges | `{"type":"FEU","nom":"F1","do_rouge":1,"do_orange_cli":2,"do_orange_fixe":3,"do_vert":4}` |
 | `SIRENE` | Sirène | `do` | `{"type":"SIRENE","nom":"SIRENE","do":3}` |
 | `FLASH` | Flash | `do` | |
 | `SIRENE_FLASH` | Sirène + flash (1 sortie) | `do` | |
@@ -62,10 +84,14 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 | `CAMERA_SPOT` | Caméra + spot (1 commande) | `do_camera`, `do_spot` | `{"type":"CAMERA_SPOT","nom":"CAM","do_camera":1,"do_spot":2}` |
 | `SORTIE` | Sortie générique | `do` | |
 
+**Ancien format du feu** (`do_orange`, avant la v1.5 du moteur) : `M.normaliser_projet(projet)` le convertit en `do_orange_cli` (l'ancien orange était un orange clignotant) et ajoute `do_orange_fixe: null`. `M.valider`, `M.calculer_plan` et `M.preparer_generation` appliquent cette conversion d'eux-mêmes ; l'interface l'appelle à l'ouverture pour que le fichier enregistré soit au nouveau format.
+
+**Registres de commande** (base) : rouge 401–410, orange clignotant 411–420, orange fixe 421–430, vert 431–440 (n = numéro du feu sur le site), autres signalisations 441–450. Fail-safe des commandes : 401 × 50.
+
 Plages : `di` et `do` de 1 à 8 ; `ai` de 1 à 4 ; une même DI/DO/AI ne peut servir qu'une fois dans la radio (MAINV compris).
 
 Contraintes vérifiées par `M.valider()` (rien à coder côté interface, seulement afficher les messages) :
-- radar interdit sur la base ; radars d'une même radio sur des AI consécutives ;
+- radars d'une même radio sur des AI consécutives. La base accepte tous les périphériques ; un radar sur la base est simplement recopié en local dans son registre 352nn (pas d'IO Plus) ;
 - au plus 10 feux et 10 signalisations autres sur tout le site ;
 - seuil radar entre 4 et 20 mA ; hystérésis entre 0,1 et (seuil − 4) ; variation 0,1 à 8 mA ; tmin 1 à 3600 s ;
 - pas de boucle dans les amonts.

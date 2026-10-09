@@ -30,10 +30,11 @@ def verifier(dossier):
             with open(os.path.join(BASE, 'examples', f'{nom}.json'), encoding='utf-8') as f:
                 projet = json.load(f)
             plan, fichiers = M.generer_tout(projet, os.path.join(dossier, nom))
-            fichiers.append(PDF.ecrire_pdf(V.donnees_pdf(plan), os.path.join(dossier, nom, f'{nom}.pdf'),
-                                           plan['systeme']['nom_projet']))
-            fichiers.append(XL.ecrire_excel(V.donnees_excel(plan), os.path.join(dossier, nom, f'{nom}.xlsx'),
-                                            plan['systeme']['nom_projet']))
+            base, titre = M.base_nom_fichier(plan), f"{plan['systeme']['nom_projet']} — V{plan['version_config']}"
+            fichiers.append(PDF.ecrire_pdf(V.donnees_pdf(plan), os.path.join(dossier, nom, f'{base}_Compte_rendu.pdf'),
+                                           titre))
+            fichiers.append(XL.ecrire_excel(V.donnees_excel(plan), os.path.join(dossier, nom, f'{base}_Adresses.xlsx'),
+                                            titre))
             lignes += [f'OK {nom} : {os.path.basename(c)} ({os.path.getsize(c)} octets)' for c in fichiers]
         except Exception:
             lignes.append(f'ÉCHEC {nom} :\n{traceback.format_exc()}')
