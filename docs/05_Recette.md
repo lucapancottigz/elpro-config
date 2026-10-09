@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 12 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import.
+Résultat attendu : `Ran 17 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -46,7 +46,7 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 ## Version de configuration et feu à 4 sorties (moteur v1.5)
 
 - [ ] Ouvrir `examples/demo_site_A.json` : « Version de configuration : V1.0 ». Générer : V1.0 (première génération), fichiers proposés `Demo_Site_A_V1.0.cdb`, `Demo_Site_A_V1.0_Compte_rendu.pdf`, `Demo_Site_A_V1.0_Adresses.xlsx`, `IOPlus_A-BASE_V1.0_DESACTIVE.sconf`.
-- [ ] Changer l'IP d'une radio, générer : V1.1, barre d'état « V1.0 → V1.1 (modification mineure) », titre avec `*`.
+- [ ] Changer l'IP d'une radio, générer : V1.1, barre d'état « Configuration générée — version V1.1 (modification mineure) », titre avec `*`.
 - [ ] Supprimer un périphérique, générer : V2.0 (majeure).
 - [ ] Générer à nouveau sans rien changer : reste V2.0 (aucune modification).
 - [ ] Enregistrer, fermer, rouvrir : la version affichée est V2.0 ; générer sans modification : V2.0.
