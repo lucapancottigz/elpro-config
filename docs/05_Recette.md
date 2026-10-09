@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 18 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec.
+Résultat attendu : `Ran 20 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -54,4 +54,9 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] `demo_site_B`, radio B-F3 : registres 403 (rouge), 413 (orange clignotant), 423 (orange fixe), 443 (vert) ; autres signalisations à partir de 431.
 - [ ] Liste des registres (page 2, PDF, Excel) : aucun registre d'échec 152xx–157xx ni 15501 ; les comflags 151xx sont présents.
 - [ ] Ouvrir un ancien projet (avec `do_orange`) : l'orange apparaît en « Orange clignotant », le titre affiche `*`, et l'enregistrement écrit `do_orange_cli`.
+
+## Noms courts et échelle du radar (moteur v1.7)
+
+- [ ] Tous les noms de registres (I/O Register Name Configuration) et de tags du tableau de bord font 16 caractères au plus. Sur la radio, le tableau de bord n'affiche plus de « DIn1 », « DOut5 »…
+- [ ] Radar avec échelle 0–1000 cm, seuil 500 cm : tableau de bord en cm, alarme haute à 500 cm ; dans le JSON, `seuil_haut_ma` = 12.0.
 

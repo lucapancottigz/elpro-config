@@ -221,6 +221,43 @@ class TestRegistres(unittest.TestCase):
             self.assertTrue(all(m['fail'] for m in B['reads']))                # toujours utilisés par les mappings
 
 
+class TestNomsEtRadar(unittest.TestCase):
+    def test_noms_16_caracteres(self):
+        """Noms de registres et de tags : 16 caractères max (au-delà la radio affiche DIn1, DOut5…), uniques."""
+        p = charger('demo_site_B')
+        p['radios'][0]['nom'] = 'NOM-TRES-LONG-BASE'                       # 18 caractères
+        for r in p['radios'][1:]:
+            if r.get('amont') == 'B-BASE': r['amont'] = 'NOM-TRES-LONG-BASE'
+        plan = M.calculer_plan(p)
+        noms = [r['nom'] for r in plan['registres']]
+        self.assertTrue(all(len(n) <= M.NOM_MAX for n in noms), [n for n in noms if len(n) > M.NOM_MAX])
+        self.assertEqual(len(noms), len(set(noms)))
+        for S in plan['stations']:
+            self.assertTrue(all(len(t['nom']) <= M.NOM_MAX for t in S['tags']))
+            self.assertTrue(all(len(n) <= M.NOM_MAX for _a, n in S['noms_registres']))
+        self.assertEqual(M.nom_court('SB-CA-SM1', 'RADAR_LVL'), 'SB-CA_RADAR_LVL')
+
+    def test_radar_echelle(self):
+        """Radar avec échelle : tableau de bord dans l'unité (cm), seuil converti ; sans échelle : mA."""
+        p = charger('demo_site_B')
+        rad = next(x for r in p['radios'] for x in r['peripheriques'] if x['type'] == 'RADAR')
+        plan = M.calculer_plan(p)
+        t = next(t for t in plan['stations'][0]['tags'] if t['registre'] == 35201)
+        self.assertEqual(t['unites'], 'mA')
+        rad.update(mesure_4ma=0, mesure_20ma=1000, unite='cm', seuil_haut_ma=12.0)
+        self.assertEqual(M.valider(p), [])
+        plan = M.calculer_plan(p)
+        t = next(t for t in plan['stations'][0]['tags'] if t['registre'] == 35201)
+        self.assertEqual((t['unites'], t['dp1'], t['dp2'], t['haut']), ('cm', '0', '1000', 500.0))
+        self.assertIn('= 1000 cm', next(r for r in plan['registres'] if r['adresse'] == 35201)['description'])
+        R = plan['stations'][-1]['radars'][0]
+        self.assertAlmostEqual(M.unite_vers_ma(M.ma_vers_unite(9.3, R), R), 9.3)
+        rad['mesure_20ma'] = 0
+        self.assertTrue(any('différentes' in e for e in M.valider(p)))
+        rad.pop('mesure_20ma')
+        self.assertTrue(any('incomplète' in e for e in M.valider(p)))
+
+
 class TestFeu(unittest.TestCase):
     """Feu à 4 sorties : rouge, orange clignotant, orange fixe, vert."""
     def test_registres_4_sorties(self):

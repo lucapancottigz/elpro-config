@@ -74,7 +74,7 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 | `LIDAR6` | Lidar 6 sorties | `di`: liste de 6 entiers | `{"type":"LIDAR6","nom":"LIDAR","di":[1,2,3,4,5,6]}` |
 | `ALARME_BT` | Alarme bouton/BT | `di`: liste de 1 entier | `{"type":"ALARME_BT","nom":"BT_ALARME","di":[1]}` |
 | `ENTREE` | Entrée générique | `di`: liste de 1 entier | |
-| `RADAR` | Radar (4-20 mA) | `ai`: 1 à 4 ; `seuil_haut_ma` ; `hysteresis_ma` (déf. 0.8) ; `variation_ma` (déf. 0.8) ; `tmin_s` (déf. 10) | `{"type":"RADAR","nom":"RADAR1","ai":1,"seuil_haut_ma":12.0,"hysteresis_ma":0.8,"variation_ma":0.8,"tmin_s":10}` |
+| `RADAR` | Radar (4-20 mA) | `ai`: 1 à 4 ; `seuil_haut_ma` ; `hysteresis_ma` (déf. 0.8) ; `variation_ma` (déf. 0.8) ; `tmin_s` (déf. 10) ; **échelle facultative** : `mesure_4ma` et `mesure_20ma` (valeur mesurée à 4 et à 20 mA, ex. 0 et 1000), `unite` (déf. `cm`, 8 caractères max) | `{"type":"RADAR","nom":"RADAR1","ai":1,"seuil_haut_ma":12.0,"hysteresis_ma":0.8,"variation_ma":0.8,"tmin_s":10}` |
 | `FEU` | Feu | `do_rouge` (obligatoire), `do_orange_cli` (orange clignotant), `do_orange_fixe` (orange fixe), `do_vert` : entier ou `null`. Au moins un des deux oranges | `{"type":"FEU","nom":"F1","do_rouge":1,"do_orange_cli":2,"do_orange_fixe":3,"do_vert":4}` |
 | `SIRENE` | Sirène | `do` | `{"type":"SIRENE","nom":"SIRENE","do":3}` |
 | `FLASH` | Flash | `do` | |
@@ -89,6 +89,10 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 **Registres de commande** (base) : rouge 401–410, orange clignotant 411–420, orange fixe 421–430, autres signalisations 431–440, **vert 441–450** (n = numéro du feu sur le site). Les sites existants gardent ainsi leurs adresses ; le vert est simplement ajouté à la fin. Fail-safe des commandes : 401 × 50.
 
 **Liste des registres** (`plan['registres']`, page 2, PDF, Excel, noms dans le `.cdb`) : elle ne contient **pas** les registres d'échec (152xx–157xx, 15501). Ces registres restent utilisés par les mappings et l'IO Plus, mais n'ont pas d'intérêt pour l'exploitation.
+
+**Échelle du radar** : si `mesure_4ma` et `mesure_20ma` sont renseignés, les tableaux de bord affichent le radar dans `unite` (conversion linéaire), et la description du registre 352nn donne la correspondance (`16384 = 4 mA = 0 cm, 49152 = 20 mA = 1000 cm`). Le registre contient toujours la valeur brute 4–20 mA (16384–49152) : une radio ne stocke que des entiers. Les seuils restent enregistrés en mA ; `M.ma_vers_unite(ma, p)` et `M.unite_vers_ma(v, p)` servent à les afficher et à les saisir dans l'unité.
+
+**Noms** : les noms de registres et de tags du tableau de bord sont limités à 16 caractères (`M.NOM_MAX`) et uniques, construits par `M.nom_court(station, libellé)`. Au-delà, la radio affiche un nom d'E/S par défaut (DIn1, DOut5…) à la place.
 
 Plages : `di` et `do` de 1 à 8 ; `ai` de 1 à 4 ; une même DI/DO/AI ne peut servir qu'une fois dans la radio (MAINV compris).
 
