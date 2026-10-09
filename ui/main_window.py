@@ -274,3 +274,6 @@ class MainWindow(QMainWindow):
         self.onglets.setCurrentIndex(1)
         detail = {None: 'aucune modification', 'mineure': 'modification mineure', 'majeure': 'modification majeure'}[niveau]
         self.statusBar().showMessage(f"Configuration générée — version V{plan['version_config']} ({detail})", 8000)
+        # remarques du moteur (ex. RSSI retirés du tableau de bord de la base) : la génération reste valide
+        if plan.get('avertissements'):
+            QMessageBox.information(self, 'Configuration générée avec des remarques', '\n'.join(plan['avertissements']))

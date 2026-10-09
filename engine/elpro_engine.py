@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
-Moteur de génération ELPRO GeoAzimut (v1.6) — IMPLÉMENTATION DE RÉFÉRENCE.
+Moteur de génération ELPRO GeoAzimut (v1.8) — IMPLÉMENTATION DE RÉFÉRENCE.
 
 Entrée  : un projet (dict, format décrit dans 03_Modele_de_donnees.md).
 Sorties : - plan (dict)            -> utilisé par la page 2, le PDF et l'Excel
@@ -42,8 +42,36 @@ TYPES = set(TYPES_ENTREE) | set(TYPES_SORTIE_SIMPLE) | {'FEU', 'CAMERA_SPOT', 'R
 # Sorties d'un feu : (clé JSON, libellé, base du registre de commande)
 # Plan des commandes : rouge 401-410, orange clignotant 411-420, orange fixe 421-430,
 # autres signalisations 431-440 (inchangé depuis les premiers sites), vert 441-450 (ajouté à la fin)
-SORTIES_FEU = (('do_rouge', 'ROUGE', 400), ('do_orange_cli', 'ORANGE_CLI', 410),
-               ('do_orange_fixe', 'ORANGE_FIXE', 420), ('do_vert', 'VERT', 440))
+SORTIES_FEU = (('do_rouge', 'ROUGE', 400), ('do_orange_cli', 'OR_CLI', 410),
+               ('do_orange_fixe', 'OR_FIXE', 420), ('do_vert', 'VERT', 440))
+LIBELLES_FEU = {'ROUGE': 'rouge', 'OR_CLI': 'orange clignotant', 'OR_FIXE': 'orange fixe', 'VERT': 'vert'}
+
+# Longueur maximale d'un nom de registre / de tag du tableau de bord : au-delà, la radio affiche un
+# nom d'E/S par défaut (DIn1, DOut5…) à la place (constaté sur radio, noms de 19 caractères).
+NOM_MAX = 16
+
+
+def nom_court(station, label, maxi=NOM_MAX):
+    """'<station>_<label>' limité à `maxi` caractères : la station est raccourcie en premier
+    (au moins 4 caractères), sinon seul le libellé est gardé.
+    'SB-CA-SM1' + 'RADAR_LVL' -> 'SB-CA_RADAR_LVL' ; 'B-CAM01' + 'CAMON_SPOTON' -> 'CAMON_SPOTON'."""
+    complet = f'{station}_{label}'
+    if len(complet) <= maxi:
+        return complet
+    place = maxi - len(label) - 1
+    if place >= 4:
+        return f"{station[:place].rstrip('-_')}_{label}"
+    return label[:maxi]                                  # libellé long : le nom de la station n'apparaît pas
+
+
+def ma_vers_unite(ma, R):
+    """Conversion mA -> unité de mesure du radar (échelle linéaire 4-20 mA)."""
+    return R['mesure_4ma'] + (ma - 4.0) / 16.0 * (R['mesure_20ma'] - R['mesure_4ma'])
+
+
+def unite_vers_ma(v, R):
+    """Conversion unité de mesure -> mA (pour saisir les seuils dans l'unité du radar)."""
+    return 4.0 + (v - R['mesure_4ma']) * 16.0 / (R['mesure_20ma'] - R['mesure_4ma'])
 BASE_AUTRES = 430            # commandes autres signalisations : 431-440
 FAILSAFE_COMMANDES = (401, 50)
 
@@ -295,6 +323,15 @@ def valider(projet):
                 elif not (0.1 <= hy < sh - 4.0): E.append(f'{n}/{pn} : hystérésis entre 0,1 mA et (seuil − 4 mA).')
                 if not (0.1 <= va <= 8.0): E.append(f'{n}/{pn} : variation entre 0,1 et 8 mA.')
                 if not (1 <= tm <= 3600): E.append(f'{n}/{pn} : intervalle mini entre 1 et 3600 s.')
+                m4, m20 = p.get('mesure_4ma'), p.get('mesure_20ma')
+                if (m4 is None) != (m20 is None):
+                    E.append(f'{n}/{pn} : échelle incomplète (mesure à 4 mA et mesure à 20 mA).')
+                elif m4 is not None:
+                    if not all(isinstance(x, (int, float)) for x in (m4, m20)) or m4 == m20:
+                        E.append(f'{n}/{pn} : mesures à 4 mA et à 20 mA différentes et numériques.')
+                    u = p.get('unite', 'cm')
+                    if not (1 <= len(u) <= 8) or set(u) & CARS_INTERDITS:
+                        E.append(f'{n}/{pn} : unité de 1 à 8 caractères, sans espace ni < > & " \'.')
             else:
                 dos = sorties_du_periph(p)
                 for d in dos:
@@ -367,6 +404,16 @@ def calculer_plan(projet):
     base = st[0]
     registres = []          # table complète des registres de la base (Excel / PDF)
 
+    pris = set()
+
+    def nomu(station, label):
+        """Nom court (NOM_MAX caractères) et unique sur le site."""
+        n, i = nom_court(station, label), 2
+        while n in pris:
+            n = nom_court(station, label, NOM_MAX - len(str(i))) + str(i); i += 1
+        pris.add(n)
+        return n
+
     def reg(adr, nom, typ, station, desc):
         registres.append({'adresse': adr, 'nom': nom, 'type': typ, 'station': station, 'description': desc})
 
@@ -391,9 +438,9 @@ def calculer_plan(projet):
             adr = 15000 + nn
             if d in dis:
                 lab, t = dis[d]
-                nom = f"{S['nom']}_{lab}"
+                nom = nomu(S['nom'], lab)
             else:
-                lab, t, nom = None, None, f"{S['nom']}_NON_UTILISE_DI{d}"
+                lab, t, nom = None, None, nomu(S['nom'], f"LIBRE_DI{d}")
             S['detections'].append({'di': d, 'adresse': adr, 'nom': nom, 'label': lab, 'type': t})
             reg(adr, nom, 'Détection', S['nom'], f'DI{d}' + ('' if lab else ' (non câblée)'))
     # ---- commandes : rouge 401-410, orange clignotant 411-420, orange fixe 421-430, autres 431-440, vert 441-450
@@ -406,16 +453,17 @@ def calculer_plan(projet):
                 for cle, coul, base_r in SORTIES_FEU:
                     if p.get(cle) is not None:
                         adr = base_r + n_feu
-                        nom = f"{S['nom']}_{p['nom']}_{coul}"
-                        S['commandes'].append({'adresse': adr, 'nom': nom, 'do': [p[cle]], 'label': f"{p['nom']}_{coul}"})
-                        reg(adr, nom, f"Commande feu {coul.lower().replace('_cli', ' clignotant').replace('_fixe', ' fixe')}",
+                        nom = nomu(S['nom'], f"{p['nom']}_{coul}")
+                        S['commandes'].append({'adresse': adr, 'nom': nom, 'do': [p[cle]], 'label': f"{p['nom']}_{coul}",
+                                              'genre': f'FEU_{coul}'})
+                        reg(adr, nom, f"Commande feu {LIBELLES_FEU[coul]}",
                             S['nom'], f"DO{p[cle]}")
             elif t in TYPES_SORTIE_SIMPLE or t == 'CAMERA_SPOT':
                 n_autre += 1
                 adr = BASE_AUTRES + n_autre
-                nom = f"{S['nom']}_{p['nom']}"
+                nom = nomu(S['nom'], p['nom'])
                 dos = [p['do']] if t != 'CAMERA_SPOT' else [p['do_camera'], p['do_spot']]
-                S['commandes'].append({'adresse': adr, 'nom': nom, 'do': dos, 'label': p['nom']})
+                S['commandes'].append({'adresse': adr, 'nom': nom, 'do': dos, 'label': p['nom'], 'genre': t})
                 reg(adr, nom, 'Commande signalisation', S['nom'], '+'.join(f'DO{d}' for d in dos))
     # ---- radars 352nn
     rn = 0
@@ -424,7 +472,7 @@ def calculer_plan(projet):
         for k, p in enumerate(rad, start=1):
             rn += 1
             adr = 35200 + rn
-            nom = f"{S['nom']}_{p['nom']}"
+            nom = nomu(S['nom'], p['nom'])
             S['radars'].append({'k': k, 'ai': p['ai'], 'adresse': adr, 'nom': nom, 'label': p['nom'],
                                 'force': 500 + k, 'bloc': 40500 + 10 * k,
                                 'S_HAUT': ma_vers_brut(p['seuil_haut_ma']),
@@ -432,18 +480,26 @@ def calculer_plan(projet):
                                 'D': int(round(p.get('variation_ma', 0.8) * 2048)),
                                 'TMIN': int(p.get('tmin_s', 10)) * 4,
                                 'seuil_haut_ma': p['seuil_haut_ma'], 'hysteresis_ma': p.get('hysteresis_ma', 0.8),
-                                'variation_ma': p.get('variation_ma', 0.8), 'tmin_s': p.get('tmin_s', 10)})
-            reg(adr, nom, 'Radar (brut 4-20 mA)', S['nom'], f"AI{p['ai']} : 16384 = 4 mA, 49152 = 20 mA")
+                                'variation_ma': p.get('variation_ma', 0.8), 'tmin_s': p.get('tmin_s', 10),
+                                'mesure_4ma': p.get('mesure_4ma'), 'mesure_20ma': p.get('mesure_20ma'),
+                                'unite': p.get('unite', 'cm') if p.get('mesure_20ma') is not None else 'mA'})
+            R = S['radars'][-1]
+            if R['mesure_20ma'] is not None:
+                desc = (f"AI{p['ai']} : 16384 = 4 mA = {_fmt(R['mesure_4ma'])} {R['unite']}, "
+                        f"49152 = 20 mA = {_fmt(R['mesure_20ma'])} {R['unite']}")
+            else:
+                desc = f"AI{p['ai']} : 16384 = 4 mA, 49152 = 20 mA"
+            reg(adr, nom, 'Radar (brut 4-20 mA)', S['nom'], desc)
 
     # ---- registres d'état par station
     for S in st:
         xx = S['xx']
-        reg(int(f'305{xx}'), f"{S['nom']}_BATTV", 'Tension batterie', S['nom'], '8192 = 0 V, 49152 = 40 V')
-        reg(int(f'351{xx}'), f"{S['nom']}_RSSI", 'RSSI', S['nom'], 'dBm (valeur négative)')
+        reg(int(f'305{xx}'), nomu(S['nom'], 'BATTV'), 'Tension batterie', S['nom'], '8192 = 0 V, 49152 = 40 V')
+        reg(int(f'351{xx}'), nomu(S['nom'], 'RSSI'), 'RSSI', S['nom'], 'dBm (valeur négative)')
         if S['mainv']:
-            reg(int(f'105{xx}'), f"{S['nom']}_MAINV", 'Secteur présent', S['nom'], f"DI{S['mainv'].get('di', 8)}")
+            reg(int(f'105{xx}'), nomu(S['nom'], 'MAINV'), 'Secteur présent', S['nom'], f"DI{S['mainv'].get('di', 8)}")
         if S['role'] != 'base':
-            reg(int(f'151{xx}'), f"{S['nom']}_COMFLAG", 'Comflag (1 = perte comm)', S['nom'], 'calculé par IO Plus')
+            reg(int(f'151{xx}'), nomu(S['nom'], 'COMFLAG'), 'Comflag (1 = perte comm)', S['nom'], 'calculé par IO Plus')
             # Les registres d'échec (152xx–157xx, 15501) restent utilisés par les mappings et l'IO Plus,
             # mais ne figurent pas dans la liste des registres : sans intérêt pour l'exploitation.
 
@@ -547,10 +603,13 @@ def calculer_plan(projet):
     base['iop'] = lignes
 
     # ---- noms (UserIOsInfo), noms d'E/S, dashboards
+    avertissements = []
     for S in st:
         construire_noms_et_dashboard(S, st, registres)
+        avertissements += S.pop('_avert', [])
 
     return {'systeme': dict(s), 'stations': st, 'T': T, 'creneaux': creneaux,
+            'avertissements': avertissements,
             'registres': sorted(registres, key=lambda r: r['adresse']),
             'genere_le': datetime.datetime.now().strftime('%d.%m.%Y %H:%M'),
             'version_config': version_config(projet)}
@@ -606,6 +665,7 @@ def bloc_radar(R):
     return L
 
 
+MAX_TAGS = 50                # tableau de bord ELPRO : 50 tags au maximum (table Tags, maxrows 50)
 TAG_OK = ('OK/NOK', 2, 0, 1, 0, 16384, 49152, 0, 100)
 TAG_ONOFF = ('ON/OFF', 2, 0, 1, 0, 16384, 49152, 0, 100)
 TAG_VB = ('V', 16, 9, 14.5, 11.5, 8192, 49152, 0, 40)
@@ -613,10 +673,26 @@ TAG_RSSI = ('dBm', 0, -150, -20, -95, 0, 150, 0, -150)
 TAG_MA = ('mA', 21, 3.5, None, 3.8, 16384, 49152, 4, 20)
 
 
+def _fmt(x):
+    """1000.0 -> '1000' ; 12.5 -> '12.5'."""
+    return f'{x:g}'
+
+
+def tag_radar(nom, registre, R):
+    """Tag de tableau de bord d'un radar : en mA, ou dans l'unité de mesure si une échelle est définie.
+    Alarme haute = seuil ; alarme basse = 3,8 mA (capteur en défaut) ; hors plage < 3,5 mA ou > 21 mA."""
+    if R.get('mesure_20ma') is None:
+        return tag(nom, registre, TAG_MA, haut=R['seuil_haut_ma'])
+    c = lambda ma: round(ma_vers_unite(ma, R), 1)
+    hi, lo = c(R['seuil_haut_ma']), c(3.8)
+    style = (R['unite'], c(21), c(3.5), hi, lo, 16384, 49152, _fmt(R['mesure_4ma']), _fmt(R['mesure_20ma']))
+    return tag(nom, registre, style)
+
+
 def tag(nom, registre, style, invert=0, haut=None):
     u, over, under, hi, lo, rp1, rp2, dp1, dp2 = style
     if hi is None: hi = haut
-    return {'nom': nom[:20], 'registre': registre, 'unites': u, 'over': over, 'under': under, 'haut': hi,
+    return {'nom': nom[:NOM_MAX], 'registre': registre, 'unites': u, 'over': over, 'under': under, 'haut': hi,
             'bas': lo, 'invert': invert, 'rp1': rp1, 'rp2': rp2, 'dp1': dp1, 'dp2': dp2}
 
 
@@ -635,9 +711,15 @@ def construire_noms_et_dashboard(S, st, registres):
         det = [r for X in st for r in X['detections'] if r['label']]
         g = [tag(d['nom'], d['adresse'], TAG_OK if d['type'] == 'CABLE' else TAG_ONOFF) for d in det]
         if g: tags += g; groupes.append(('Alarmes', len(g)))
-        g = [tag(R['nom'], R['adresse'], TAG_MA, haut=R['seuil_haut_ma']) for X in st for R in X['radars']]
+        g = [tag_radar(R['nom'], R['adresse'], R) for X in st for R in X['radars']]
         if g: tags += g; groupes.append(('Radars', len(g)))
-        g = [tag(c['nom'], c['adresse'], TAG_ONOFF) for X in st for c in X['commandes']]
+        # une seule commande de chaque genre (feu rouge, orange clignotant, orange fixe, vert, sirène…) :
+        # le tableau de bord de la base est limité à 50 tags
+        vus, g = set(), []
+        for X in st:
+            for c in X['commandes']:
+                if c['genre'] not in vus:
+                    vus.add(c['genre']); g.append(tag(c['nom'], c['adresse'], TAG_ONOFF))
         if g: tags += g; groupes.append(('Signalisations', len(g)))
         g = [tag(f"MAINV {X['nom']}", int(f"105{X['xx']}"), TAG_OK) for X in st if X['mainv']]
         if g: tags += g; groupes.append(('Status - MAINV', len(g)))
@@ -647,6 +729,21 @@ def construire_noms_et_dashboard(S, st, registres):
         if g: tags += g; groupes.append(('Status - RSSI', len(g)))
         g = [tag(f"CFLAG {X['nom']}", int(f"151{X['xx']}"), TAG_OK) for X in st[1:]]
         if g: tags += g; groupes.append(('Status - FLAGC', len(g)))
+        # limite ELPRO : 50 tags. Au-delà, les RSSI sont retirés en premier.
+        if len(tags) > MAX_TAGS:
+            n_rssi = dict(groupes).get('Status - RSSI', 0)
+            tags = [t for t in tags if t['unites'] != 'dBm']
+            groupes = [gr for gr in groupes if gr[0] != 'Status - RSSI']
+            S['_avert'] = [f"Tableau de bord de {S['nom']} : {len(tags) + n_rssi} éléments pour {MAX_TAGS} au maximum. "
+                           f"Les {n_rssi} RSSI ont été retirés (registres 351xx toujours disponibles)."]
+            if len(tags) > MAX_TAGS:
+                S['_avert'].append(f"Tableau de bord de {S['nom']} : encore {len(tags)} éléments après retrait des RSSI ; "
+                                   f"seuls les {MAX_TAGS} premiers sont gardés.")
+                tags = tags[:MAX_TAGS]
+                reste, groupes2 = MAX_TAGS, []
+                for nomg, nb in groupes:
+                    if reste > 0: groupes2.append((nomg, min(nb, reste))); reste -= nb
+                groupes = groupes2
     else:
         if S['mainv']: noms.append((10000 + S['mainv'].get('di', 8), 'MAINV'))
         g = []
@@ -658,7 +755,7 @@ def construire_noms_et_dashboard(S, st, registres):
         g = []
         for R in S['radars']:
             noms.append((30000 + R['ai'], R['label']))
-            g.append(tag(R['label'], 30000 + R['ai'], TAG_MA, haut=R['seuil_haut_ma']))
+            g.append(tag_radar(R['label'], 30000 + R['ai'], R))
         if g: tags += g; groupes.append(('Radars', len(g)))
         g = []
         for c in S['commandes']:

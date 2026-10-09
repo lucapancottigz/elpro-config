@@ -2,6 +2,18 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.3.0] — 2026-10-09
+
+### Ajouté
+- Radar : échelle facultative (mesure à 4 mA, mesure à 20 mA, unité ; 0–1000 cm par défaut). Les seuils se saisissent dans l'unité et le tableau de bord affiche le radar en cm ; le registre garde la valeur brute 4–20 mA.
+- Remarques du moteur après génération : boîte « Configuration générée avec des remarques » (la génération reste valide).
+
+### Modifié
+- Tableau de bord de la base : toutes les alarmes et tous les radars, une seule commande de chaque genre (1 feu rouge, 1 orange clignotant, 1 orange fixe, 1 vert, 1 sirène…), tous les BATTV, MAINV, RSSI et comflags. Limite ELPRO de 50 éléments : au-delà, les RSSI sont retirés du tableau de bord (registres 351xx toujours disponibles) et une remarque est affichée.
+
+### Corrigé
+- Tableau de bord : les noms de registres et de tags font 16 caractères au plus et sont uniques. Les noms plus longs étaient remplacés sur la radio par `DIn1`, `DOut5`… Libellés de feu raccourcis : `ORANGE_CLI` → `OR_CLI`, `ORANGE_FIXE` → `OR_FIXE`.
+
 ## [1.2.0] — 2026-10-09
 
 ### Modifié
@@ -41,6 +53,7 @@ Première version publique (retirée, remplacée par la 1.0.1).
 - Deux projets de démonstration fictifs (`demo_site_A`, `demo_site_B`).
 - Installateur Windows pour tous les utilisateurs, avec icône sur le bureau et raccourci dans le menu Démarrer (au choix).
 
+[1.3.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.3.0
 [1.2.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.2.0
 [1.1.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.1.0
 [1.0.1]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.0.1

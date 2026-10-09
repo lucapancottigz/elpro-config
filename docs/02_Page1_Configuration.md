@@ -85,7 +85,7 @@ Tableau : `Type` (libellé), `Nom`, `Câblage` (ex. `DI3-DI5`, `DO1/DO2`, `AI1 �
 | FEU | 4 listes DO1–DO8 avec le choix « aucune » : **Sortie rouge**, **Sortie orange clignotant**, **Sortie orange fixe**, **Sortie verte**. Valeurs proposées à l'ajout : rouge DO1, orange clignotant DO2, orange fixe « aucune », verte « aucune ». Le rouge et au moins un des deux oranges sont obligatoires (contrôlé par `M.valider`) |
 | SIRENE, FLASH, SIRENE_FLASH, CAMERA, SPOT, SORTIE | Sortie : DO1–DO8 |
 | CAMERA_SPOT | Sortie caméra, Sortie spot : DO1–DO8 |
-| RADAR | Entrée analogique : AI1–AI4 ; Seuil haut (mA, 4,1–19,9, pas 0,1) ; Hystérésis (mA, défaut 0,8) ; Variation déclenchant un envoi (mA, défaut 0,8) ; Intervalle minimal entre envois (s, défaut 10) |
+| RADAR | Entrée analogique : AI1–AI4 ; case **Échelle** (cochée par défaut) avec **Mesure à 4 mA** (défaut 0), **Mesure à 20 mA** (défaut 1000) et **Unité** (défaut `cm`) ; Seuil haut, Hystérésis et Variation déclenchant un envoi : saisis **dans l'unité** si l'échelle est cochée (conversion par `M.unite_vers_ma`, stockés en mA), sinon en mA (seuil 4,1–19,9, hystérésis et variation défaut 0,8) ; Intervalle minimal entre envois (s, défaut 10) |
 
 Dans les listes DI/DO/AI, les entrées déjà prises par un autre périphérique (ou par MAINV) apparaissent grisées avec le nom de l'occupant entre parenthèses.
 
@@ -100,6 +100,7 @@ Dans les listes DI/DO/AI, les entrées déjà prises par un autre périphérique
    2. `plan = M.calculer_plan(projet)`, garder `plan` en mémoire, remplir la page 2, basculer sur l'onglet 2 ;
    3. mettre à jour l'affichage **Version de configuration** ;
    4. Après une génération réussie, si le projet a changé (première génération, ou version incrémentée) : marquer le projet « non enregistré » (`*`), car `derniere_generation` et la version doivent être enregistrées. Une nouvelle génération sans aucune modification ne marque pas le projet. Afficher dans tous les cas dans la barre d'état (8 s) « Configuration générée — version V<x.y> (modification majeure | mineure | aucune modification) ».
+   5. Si `plan['avertissements']` n'est pas vide : boîte d'information « Configuration générée avec des remarques » listant les messages (un par ligne). La génération reste valide.
 
    **Important :** la version et `derniere_generation` sont stockées dans le `.elpro.json`. Si l'utilisateur n'enregistre pas le projet après une génération, la génération suivante repartira de l'ancienne référence. À la fermeture ou à « Nouveau »/« Ouvrir », la demande de confirmation habituelle (« modifications non enregistrées ») couvre ce cas.
 

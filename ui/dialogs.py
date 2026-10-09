@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QRegularExpression
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator, QPixmap
 from PySide6.QtWidgets import (QDialog, QFormLayout, QVBoxLayout, QComboBox, QLineEdit, QDoubleSpinBox,
                                QSpinBox, QDialogButtonBox, QWidget, QLabel, QHBoxLayout, QPushButton,
-                               QPlainTextEdit, QMessageBox)
+                               QPlainTextEdit, QMessageBox, QCheckBox)
 
 import elpro_engine as M
 from version import APP_VERSION, APP_COPYRIGHT, APP_WEBSITE
@@ -37,6 +37,11 @@ SORTIES_SIMPLES = ('SIRENE', 'FLASH', 'SIRENE_FLASH', 'CAMERA', 'SPOT', 'SORTIE'
 # Sorties d'un feu : (clé JSON, libellé de la liste, abréviation de la colonne Câblage)
 SORTIES_FEU = (('do_rouge', 'Sortie rouge', 'R'), ('do_orange_cli', 'Sortie orange clignotant', 'OC'),
                ('do_orange_fixe', 'Sortie orange fixe', 'OF'), ('do_vert', 'Sortie verte', 'V'))
+# Seuils du radar, enregistrés en mA : (clé JSON, libellé, plage en mA, défaut en mA, écart ?)
+SEUILS_RADAR = (('seuil_haut_ma', 'Seuil haut', (4.1, 19.9), 12.0, False),
+                ('hysteresis_ma', 'Hystérésis', (0.1, 15.8), 0.8, True),
+                ('variation_ma', 'Variation déclenchant un envoi', (0.1, 8.0), 0.8, True))
+ECHELLE_DEFAUT = {'mesure_4ma': 0.0, 'mesure_20ma': 1000.0, 'unite': 'cm'}
 NOM_FIXE = {'LIDAR3': 'LIDAR', 'LIDAR6': 'LIDAR', 'ALARME_BT': 'BT_ALARME', 'SIRENE': 'SIRENE', 'FLASH': 'FLASH',
             'SIRENE_FLASH': 'SIRENE_FLASH', 'CAMERA': 'CAM', 'SPOT': 'SPOT', 'CAMERA_SPOT': 'CAM'}
 
@@ -59,7 +64,12 @@ def texte_cablage(p):
     if t in ENTREES_SIMPLES or t in LIDARS:
         return _plage('DI', p.get('di', []))
     if t == 'RADAR':
-        return f"AI{p.get('ai')} — seuil {nombre_fr(p.get('seuil_haut_ma'))} mA"
+        seuil = p.get('seuil_haut_ma')
+        if p.get('mesure_20ma') is not None and p.get('mesure_4ma') is not None and seuil is not None:
+            u = p.get('unite', 'cm')
+            return (f"AI{p.get('ai')} · {p['mesure_4ma']:g}–{p['mesure_20ma']:g} {u} · "
+                    f"seuil {round(M.ma_vers_unite(seuil, p), 1):g} {u}")
+        return f"AI{p.get('ai')} · seuil {seuil:.1f} mA" if isinstance(seuil, (int, float)) else f"AI{p.get('ai')}"
     if t == 'FEU':
         return ' · '.join(f'{abr} DO{p[cle]}' for cle, _l, abr in SORTIES_FEU if p.get(cle) is not None)
     if t == 'CAMERA_SPOT':
@@ -278,14 +288,84 @@ class DialoguePeripherique(QDialog):
         elif t == 'RADAR':
             cb = self._combo('Entrée analogique', 'ai', 'AI', AI, self.occ_ai)
             choisir(cb, p.get('ai') if p else premier_libre(AI, self.occ_ai))
-            self._spin('Seuil haut', 'seuil_haut_ma', 4.1, 19.9, 0.1, p.get('seuil_haut_ma', 12.0) if p else 12.0, suffixe=' mA')
-            self._spin('Hystérésis', 'hysteresis_ma', 0.1, 15.8, 0.1, p.get('hysteresis_ma', 0.8) if p else 0.8, suffixe=' mA')
-            self._spin('Variation déclenchant un envoi', 'variation_ma', 0.1, 8.0, 0.1,
-                       p.get('variation_ma', 0.8) if p else 0.8, suffixe=' mA')
-            self._spin('Intervalle minimal entre envois', 'tmin_s', 1, 3600, 1, p.get('tmin_s', 10) if p else 10,
-                       decimales=0, suffixe=' s')
+            self._champs_radar(p)
         if p is None:
             self._proposer_nom()
+
+    # ---------------------------------------------------------------- radar : échelle et seuils
+    def _champs_radar(self, p):
+        """Échelle facultative (nouveau radar : cochée ; radar existant sans échelle : décochée) et seuils.
+        Les seuils sont gardés en mA dans self._ma et ne changent que si l'utilisateur les modifie ;
+        avec une échelle, ils sont affichés et saisis dans l'unité."""
+        self._maj_seuils = True
+        avec = p is None or p.get('mesure_20ma') is not None
+        ech = {k: (p.get(k, v) if p and avec else v) for k, v in ECHELLE_DEFAUT.items()}
+        ck = QCheckBox(); ck.setChecked(avec)
+        self.form.addRow('Échelle', ck)
+        self.champs['echelle'] = ck
+        for cle, lib in (('mesure_4ma', 'Mesure à 4 mA'), ('mesure_20ma', 'Mesure à 20 mA')):
+            sp = self._spin(lib, cle, -99999.0, 99999.0, 1.0, float(ech[cle]))
+            sp.valueChanged.connect(self._echelle_modifiee)
+        ed = QLineEdit(ech['unite'] or ''); ed.setMaxLength(8)
+        ed.textChanged.connect(self._echelle_modifiee)
+        self.form.addRow('Unité', ed)
+        self.champs['unite'] = ed
+        ck.toggled.connect(self._echelle_modifiee)
+        self._ma = {cle: float(p.get(cle, defaut)) if p else defaut for cle, _l, _p, defaut, _e in SEUILS_RADAR}
+        for cle, lib, _plage, _d, _e in SEUILS_RADAR:
+            sp = self._spin(lib, cle, 0.0, 1.0, 0.1, 0.0)
+            sp.valueChanged.connect(lambda v, c=cle: self._seuil_saisi(c, v))
+        self._spin('Intervalle minimal entre envois', 'tmin_s', 1, 3600, 1, p.get('tmin_s', 10) if p else 10,
+                   decimales=0, suffixe=' s')
+        self._maj_seuils = False
+        self._echelle_modifiee()
+
+    def _echelle(self):
+        """Échelle saisie {'mesure_4ma', 'mesure_20ma', 'unite'}, ou None si la case est décochée."""
+        c = self.champs
+        if not c['echelle'].isChecked():
+            return None
+        mesure = lambda v: int(v) if float(v).is_integer() else v          # 1000.0 -> 1000 dans le JSON
+        return {'mesure_4ma': mesure(c['mesure_4ma'].value()), 'mesure_20ma': mesure(c['mesure_20ma'].value()),
+                'unite': c['unite'].text()}
+
+    def _echelle_modifiee(self, *_):
+        """Réaffiche les seuils (gardés en mA) dans l'unité de l'échelle, ou en mA."""
+        if self._maj_seuils:
+            return
+        ech = self._echelle()
+        for cle in ('mesure_4ma', 'mesure_20ma', 'unite'):
+            self.champs[cle].setEnabled(ech is not None)
+        ok = ech is not None and ech['mesure_20ma'] != ech['mesure_4ma']
+        self._maj_seuils = True
+        for cle, _lib, (mini, maxi), _d, ecart in SEUILS_RADAR:
+            sp = self.champs[cle]
+            if ok:
+                if ecart:       # écart : proportionnel à l'étendue de l'échelle
+                    f = abs(ech['mesure_20ma'] - ech['mesure_4ma']) / 16.0
+                    bornes, val = (mini * f, maxi * f), self._ma[cle] * f
+                else:
+                    bornes, val = (M.ma_vers_unite(mini, ech), M.ma_vers_unite(maxi, ech)), M.ma_vers_unite(self._ma[cle], ech)
+                sp.setRange(min(bornes), max(bornes)); sp.setSingleStep(1.0)
+                sp.setSuffix(f" {ech['unite']}" if ech['unite'] else '')
+            else:
+                sp.setRange(mini, maxi); sp.setSingleStep(0.1); sp.setSuffix(' mA')
+                val = self._ma[cle]
+            sp.setValue(val)
+        self._maj_seuils = False
+
+    def _seuil_saisi(self, cle, valeur):
+        """Seuil modifié par l'utilisateur : nouvelle valeur en mA, arrondie à 0,01 mA."""
+        if self._maj_seuils:
+            return
+        ech = self._echelle()
+        if ech is None or ech['mesure_20ma'] == ech['mesure_4ma']:
+            ma = valeur
+        elif cle == 'seuil_haut_ma':
+            ma = M.unite_vers_ma(valeur, ech)
+        else:
+            ma = valeur * 16.0 / abs(ech['mesure_20ma'] - ech['mesure_4ma'])
+        self._ma[cle] = round(ma, 2)
 
     def _suite_lidar(self, n):
         d = self.champs['premiere'].currentData()
@@ -308,9 +388,12 @@ class DialoguePeripherique(QDialog):
         elif t == 'CAMERA_SPOT':
             p.update(do_camera=c['do_camera'].currentData(), do_spot=c['do_spot'].currentData())
         elif t == 'RADAR':
-            p.update(ai=c['ai'].currentData(), seuil_haut_ma=round(c['seuil_haut_ma'].value(), 1),
-                     hysteresis_ma=round(c['hysteresis_ma'].value(), 1), variation_ma=round(c['variation_ma'].value(), 1),
-                     tmin_s=int(c['tmin_s'].value()))
+            p['ai'] = c['ai'].currentData()
+            p.update({cle: self._ma[cle] for cle, _l, _p, _d, _e in SEUILS_RADAR})
+            p['tmin_s'] = int(c['tmin_s'].value())
+            ech = self._echelle()
+            if ech is not None:         # case décochée : les 3 clés d'échelle sont absentes
+                p.update(ech)
         return p
 
 

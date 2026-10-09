@@ -221,6 +221,72 @@ class TestRegistres(unittest.TestCase):
             self.assertTrue(all(m['fail'] for m in B['reads']))                # toujours utilisés par les mappings
 
 
+class TestNomsEtRadar(unittest.TestCase):
+    def test_noms_16_caracteres(self):
+        """Noms de registres et de tags : 16 caractères max (au-delà la radio affiche DIn1, DOut5…), uniques."""
+        p = charger('demo_site_B')
+        p['radios'][0]['nom'] = 'NOM-TRES-LONG-BASE'                       # 18 caractères
+        for r in p['radios'][1:]:
+            if r.get('amont') == 'B-BASE': r['amont'] = 'NOM-TRES-LONG-BASE'
+        plan = M.calculer_plan(p)
+        noms = [r['nom'] for r in plan['registres']]
+        self.assertTrue(all(len(n) <= M.NOM_MAX for n in noms), [n for n in noms if len(n) > M.NOM_MAX])
+        self.assertEqual(len(noms), len(set(noms)))
+        for S in plan['stations']:
+            self.assertTrue(all(len(t['nom']) <= M.NOM_MAX for t in S['tags']))
+            self.assertTrue(all(len(n) <= M.NOM_MAX for _a, n in S['noms_registres']))
+        self.assertEqual(M.nom_court('SB-CA-SM1', 'RADAR_LVL'), 'SB-CA_RADAR_LVL')
+
+    def test_radar_echelle(self):
+        """Radar avec échelle : tableau de bord dans l'unité (cm), seuil converti ; sans échelle : mA."""
+        p = charger('demo_site_B')
+        rad = next(x for r in p['radios'] for x in r['peripheriques'] if x['type'] == 'RADAR')
+        plan = M.calculer_plan(p)
+        t = next(t for t in plan['stations'][0]['tags'] if t['registre'] == 35201)
+        self.assertEqual(t['unites'], 'mA')
+        rad.update(mesure_4ma=0, mesure_20ma=1000, unite='cm', seuil_haut_ma=12.0)
+        self.assertEqual(M.valider(p), [])
+        plan = M.calculer_plan(p)
+        t = next(t for t in plan['stations'][0]['tags'] if t['registre'] == 35201)
+        self.assertEqual((t['unites'], t['dp1'], t['dp2'], t['haut']), ('cm', '0', '1000', 500.0))
+        self.assertIn('= 1000 cm', next(r for r in plan['registres'] if r['adresse'] == 35201)['description'])
+        R = plan['stations'][-1]['radars'][0]
+        self.assertAlmostEqual(M.unite_vers_ma(M.ma_vers_unite(9.3, R), R), 9.3)
+        rad['mesure_20ma'] = 0
+        self.assertTrue(any('différentes' in e for e in M.valider(p)))
+        rad.pop('mesure_20ma')
+        self.assertTrue(any('incomplète' in e for e in M.valider(p)))
+
+
+class TestDashboardBase(unittest.TestCase):
+    def test_contenu(self):
+        """Base : toutes les alarmes, une commande de chaque genre, tous les BATTV/MAINV/RSSI/comflags."""
+        plan = M.calculer_plan(charger('demo_site_A')); B = plan['stations'][0]
+        regs = [t['registre'] for t in B['tags']]
+        det = [d['adresse'] for X in plan['stations'] for d in X['detections'] if d['label']]
+        self.assertTrue(set(det) <= set(regs))
+        genres = [c['genre'] for X in plan['stations'] for c in X['commandes']]
+        cmd = [r for r in regs if 401 <= r <= 450]
+        self.assertEqual(len(cmd), len(set(genres)))                            # une par genre
+        self.assertEqual(sorted(r for r in regs if 30500 < r < 30600), [int(f"305{X['xx']}") for X in plan['stations']])
+        self.assertEqual(len([r for r in regs if 15100 < r < 15200]), len(plan['stations']) - 1)
+        self.assertEqual(len([r for r in regs if 35100 < r < 35200]), len(plan['stations']) - 1)
+        self.assertEqual(plan['avertissements'], [])
+        self.assertEqual(sum(n for _g, n in B['groupes']), len(B['tags']))
+
+    def test_limite_50(self):
+        """Plus de 50 tags : les RSSI sont retirés et un avertissement est émis."""
+        p = charger('demo_site_B')
+        modele = p['radios'][1]
+        for i in range(8):                                                     # 17 radios au total
+            p['radios'].append(dict(json.loads(json.dumps(modele)), nom=f'X{i}', ip_octet=130 + i))
+        plan = M.calculer_plan(p); B = plan['stations'][0]
+        self.assertLessEqual(len(B['tags']), M.MAX_TAGS)
+        self.assertFalse(any(t['unites'] == 'dBm' for t in B['tags']))
+        self.assertTrue(plan['avertissements'])
+        self.assertEqual(sum(n for _g, n in B['groupes']), len(B['tags']))
+
+
 class TestFeu(unittest.TestCase):
     """Feu à 4 sorties : rouge, orange clignotant, orange fixe, vert."""
     def test_registres_4_sorties(self):

@@ -37,7 +37,7 @@ Ce dossier contient tout ce qu'il faut pour réaliser l'application. **Tu n'as p
 
 | Étape | Livrable | Contrôle |
 |---|---|---|
-| 1 | Environnement Python + lancement des tests | 18 tests `OK` |
+| 1 | Environnement Python + lancement des tests | 22 tests `OK` |
 | 2 | Fenêtre principale avec 2 onglets vides | L'application s'ouvre |
 | 3 | Page 1 complète (`02_Page1_Configuration.md`) | Ouvrir `examples/demo_site_A.json` puis l'enregistrer : fichier identique |
 | 4 | Bouton « Générer » de la page 1 | Messages d'erreur affichés ; projet valide → page 2 remplie |

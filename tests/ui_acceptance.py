@@ -3,7 +3,7 @@
 """Recette automatisée de l'interface (complément de test_engine.py, ne remplace pas la recette manuelle).
 Lancer depuis le dossier livrable :  python tests/ui_acceptance.py
 Pilote les vrais widgets en mode hors écran ; les boîtes de dialogue sont simulées."""
-import os, sys, json, tempfile
+import os, re, sys, json, tempfile
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 ICI = os.path.dirname(os.path.abspath(__file__))
@@ -307,9 +307,26 @@ def main():
              and F.mention.parent() is not None, 'Barre d\'état : « © 2026 Geoazimut SàRL — geoazimut.com »')
 
     print('Page 2')
+
+    def tableau_base():
+        """Tags du tableau de bord de la base et contrôle « une seule commande par genre »."""
+        B = p2.plan['stations'][0]
+        genres = {}
+        for S in p2.plan['stations']:
+            for c in S['commandes']:
+                genres.setdefault(c['genre'], c['nom'])      # première commande de chaque genre, ordre du site
+        cmd = [t['nom'] for t in B['tags'] if 401 <= t['registre'] <= 450]
+        return B['tags'], dict(B['groupes']), cmd == list(genres.values())
     F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))
+    MESSAGES.clear()
     F.generer()
     verifier(F.onglets.currentIndex() == 1 and p2.plan is not None, 'demo_site_A généré, page 2 affichée')
+    verifier(not any(m[1] == 'Configuration générée avec des remarques' for m in MESSAGES),
+             'demo_site_A : pas de boîte de remarques')
+    tags, groupes, un_par_genre = tableau_base()
+    verifier(len(tags) == 36 and un_par_genre and groupes.get('Status - RSSI') == 5
+             and sum(t['unites'] == 'dBm' for t in tags) == 5,
+             'demo_site_A : tableau de bord de la base, 36 éléments, une commande par genre, RSSI présents')
     racine = p2.arbre.topLevelItem(0)
     noms = [racine.child(i).text(0) for i in range(racine.childCount())]
     verifier(racine.text(0) == 'Demo Site A' and noms == ['IP Address List', 'Units'], 'arbre racine')
@@ -353,15 +370,34 @@ def main():
              and not p2.bandeau.isHidden(), 'modifier la page 1 : page 2 vidée, boutons grisés, bandeau')
 
     F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
+    MESSAGES.clear()
     F.generer()
+    m = dernier('information')
+    verifier(m and m[1] == 'Configuration générée avec des remarques' and 'RSSI ont été retirés' in m[2]
+             and F.onglets.currentIndex() == 1 and p2.plan is not None,
+             'demo_site_B : boîte « Configuration générée avec des remarques » (RSSI retirés), génération valide')
+    tags, groupes, un_par_genre = tableau_base()
+    verifier(len(tags) == 49 <= 50 and un_par_genre and not any(t['unites'] == 'dBm' for t in tags)
+             and list(groupes) == ['Alarmes', 'Radars', 'Signalisations', 'Status - MAINV', 'Status - BATTV', 'Status - FLAGC'],
+             'demo_site_B : tableau de bord de la base, 49 éléments, une commande par genre, sans RSSI')
     d_fr = os.path.join(tmp, 'sconf_fr'); os.makedirs(d_fr); REPONSES['dossier'] = d_fr; p2._export_sconf()
     verifier(sorted(os.listdir(d_fr)) == ['IOPlus_B-BASE_V1.0_DESACTIVE.sconf', 'IOPlus_B-SM3_V1.0_DESACTIVE.sconf'],
              'demo_site_B : 2 .sconf (B-BASE et B-SM3)')
     cmd = {c['nom']: c['adresse'] for S in p2.plan['stations'] for c in S['commandes']}
-    verifier([cmd.get(f'B-F3_F3_{c}') for c in ('ROUGE', 'ORANGE_CLI', 'ORANGE_FIXE', 'VERT')] == [403, 413, 423, 443],
+    verifier([cmd.get(f'B-F3_F3_{c}') for c in ('ROUGE', 'OR_CLI', 'OR_FIXE', 'VERT')] == [403, 413, 423, 443],
              'demo_site_B : B-F3 commandes 403, 413, 423, 443')
-    autres = sorted(a for n, a in cmd.items() if not n.endswith(('_ROUGE', '_ORANGE_CLI', '_ORANGE_FIXE', '_VERT')))
+    autres = sorted(a for n, a in cmd.items() if not n.endswith(('_ROUGE', '_OR_CLI', '_OR_FIXE', '_VERT')))
     verifier(autres == list(range(431, 438)), 'demo_site_B : autres signalisations en 431–437')
+    verifier(cmd.get('CAMON_SPOTON') == 433 and cmd.get('SIRENE_FLASH') == 435,
+             'demo_site_B : noms raccourcis CAMON_SPOTON (433) et SIRENE_FLASH (435)')
+    noms = [n for S in p2.plan['stations'] for _a, n in S['noms_registres']] + \
+           [t['nom'] for S in p2.plan['stations'] for t in S['tags']]
+    verifier(noms and max(len(n) for n in noms) <= M.NOM_MAX == 16,
+             'demo_site_B : noms de registres et de tags de 16 caractères au plus, toutes radios')
+    dash = [l for ch, n in p2.noeuds.items() if ch[2:] == ('B-BASE', 'Dashboard') for t in n['contenu'] for l in t['lignes']]
+    noms_dash = [str(c) for l in dash for c in l if isinstance(c, str)]
+    verifier(dash and not any(re.fullmatch(r'D(In|Out)\d+', c) for c in noms_dash),
+             'demo_site_B : tableau de bord de la base sans nom DIn… / DOut…')
 
     def echec(a):
         return 15200 <= int(a) <= 15799        # registres d'échec 152xx–157xx (15501 compris)
@@ -464,15 +500,20 @@ def main():
     dialogs.DialoguePeripherique.exec = lambda self: QDialog.Accepted
     orig_init = dialogs.DialoguePeripherique.__init__
 
-    def init_radar(self, *a, **k):          # l'utilisateur choisit Radar sur AI1
-
+    def init_radar(self, *a, **k):          # l'utilisateur choisit Radar sur AI1, seuil 500 cm
         orig_init(self, *a, **k)
         dialogs.choisir(self.cb_type, 'RADAR'); dialogs.choisir(self.champs['ai'], 1)
+        self.champs['seuil_haut_ma'].setValue(500)
     dialogs.DialoguePeripherique.__init__ = init_radar
     p1._ajouter_periph()
     dialogs.DialoguePeripherique.__init__ = orig_init
     dialogs.DialoguePeripherique.exec = orig_exec
-    verifier(p1.projet['radios'][0]['peripheriques'][-1]['type'] == 'RADAR', 'radar ajouté sur la base (AI1)')
+    radar = p1.projet['radios'][0]['peripheriques'][-1]
+    verifier(radar['type'] == 'RADAR' and radar['ai'] == 1, 'radar ajouté sur la base (AI1)')
+    verifier(radar.get('mesure_4ma') == 0 and radar.get('mesure_20ma') == 1000 and radar.get('unite') == 'cm'
+             and radar['seuil_haut_ma'] == 12.0, 'radar : échelle 0–1000 cm par défaut, seuil 500 cm → seuil_haut_ma 12.0')
+    verifier(p1.tab_periph.item(len(p1.projet['radios'][0]['peripheriques']) - 1, 2).text() == 'AI1 · 0–1000 cm · seuil 500 cm',
+             'radar : câblage « AI1 · 0–1000 cm · seuil 500 cm »')
     MESSAGES.clear()
     F.generer()
     reg = {r['adresse']: r for r in p2.plan['registres']}
@@ -480,6 +521,29 @@ def main():
              'radar sur la base : pas d\'erreur, registre 35201 au nom de la base')
     d_rb = os.path.join(tmp, 'sconf_radar_base'); os.makedirs(d_rb); REPONSES['dossier'] = d_rb; p2._export_sconf()
     verifier(len(os.listdir(d_rb)) == 2, 'radar sur la base : toujours 2 fichiers .sconf')
+    tag = next((t for t in p2.plan['stations'][0]['tags'] if t['registre'] == 35201), None)
+    verifier(tag and tag['unites'] == 'cm' and tag['haut'] == 500, 'radar : tag 35201 de la base en cm, alarme haute 500')
+
+    print('Échelle du radar')
+    sm3 = next(i for i, r in enumerate(p1.projet['radios']) if r['nom'] == 'B-SM3')
+    p1.tab_radios.selectRow(sm3)
+    k = next(i for i, x in enumerate(p1.radio_courante()['peripheriques']) if x['type'] == 'RADAR')
+    avant = dict(p1.radio_courante()['peripheriques'][k])
+    d = dialogs.DialoguePeripherique(p1, p1.projet, p1.radio_courante(), k)
+    verifier(not d.champs['echelle'].isChecked() and not d.champs['mesure_20ma'].isEnabled()
+             and d.champs['seuil_haut_ma'].suffix() == ' mA' and d.peripherique() == avant,
+             'ancien radar sans échelle : case décochée, seuils en mA, JSON inchangé')
+    d.champs['echelle'].setChecked(True)
+    verifier(d.champs['seuil_haut_ma'].value() == 500 and d.champs['seuil_haut_ma'].suffix() == ' cm'
+             and d.peripherique()['seuil_haut_ma'] == avant['seuil_haut_ma'],
+             'échelle cochée : seuil réaffiché en cm (500 cm), valeur en mA inchangée')
+    d.champs['hysteresis_ma'].setValue(100)
+    verifier(d.peripherique()['hysteresis_ma'] == 1.6, 'hystérésis saisie 100 cm → 1,6 mA')
+    d.champs['echelle'].setChecked(False)
+    pr = d.peripherique()
+    verifier(not any(c in pr for c in ('mesure_4ma', 'mesure_20ma', 'unite')),
+             'case Échelle décochée : mesure_4ma, mesure_20ma et unite absentes du JSON')
+    verifier(dialogs.texte_cablage(avant) == 'AI1 · seuil 12.0 mA', 'radar sans échelle : câblage « AI1 · seuil 12.0 mA »')
 
     print('Import')
     REPONSES['fichier'] = os.path.join(tmp, 'demo_A.cdb')

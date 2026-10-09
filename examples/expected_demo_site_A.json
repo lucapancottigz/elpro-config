@@ -24,21 +24,21 @@
   },
   {
    "adresse": 411,
-   "nom": "A-F1_F1_ORANGE_CLI",
+   "nom": "A-F1_F1_OR_CLI",
    "type": "Commande feu orange clignotant",
    "station": "A-F1",
    "description": "DO2"
   },
   {
    "adresse": 412,
-   "nom": "A-F2_F2_ORANGE_CLI",
+   "nom": "A-F2_F2_OR_CLI",
    "type": "Commande feu orange clignotant",
    "station": "A-F2",
    "description": "DO2"
   },
   {
    "adresse": 413,
-   "nom": "A-F3_F3_ORANGE_CLI",
+   "nom": "A-F3_F3_OR_CLI",
    "type": "Commande feu orange clignotant",
    "station": "A-F3",
    "description": "DO2"
@@ -888,7 +888,7 @@
    "noms_io": {
     "Din8": "MAINV"
    },
-   "nb_tags": 41,
+   "nb_tags": 36,
    "groupes": [
     [
      "Alarmes",
@@ -896,7 +896,7 @@
     ],
     [
      "Signalisations",
-     9
+     4
     ],
     [
      "Status - MAINV",
@@ -990,7 +990,7 @@
    "noms_io": {
     "Din8": "MAINV",
     "Dot1": "F1_ROUGE",
-    "Dot2": "F1_ORANGE_CLI",
+    "Dot2": "F1_OR_CLI",
     "Dot3": "SIRENE"
    },
    "nb_tags": 6,
@@ -1025,7 +1025,7 @@
    "noms_io": {
     "Din8": "MAINV",
     "Dot1": "F2_ROUGE",
-    "Dot2": "F2_ORANGE_CLI",
+    "Dot2": "F2_OR_CLI",
     "Dot3": "SIRENE"
    },
    "nb_tags": 6,
@@ -1059,7 +1059,7 @@
    "iop": null,
    "noms_io": {
     "Dot1": "F3_ROUGE",
-    "Dot2": "F3_ORANGE_CLI"
+    "Dot2": "F3_OR_CLI"
    },
    "nb_tags": 4,
    "groupes": [
