@@ -44,21 +44,21 @@
    "description": "DO2"
   },
   {
-   "adresse": 441,
+   "adresse": 431,
    "nom": "A-SM1_CAM",
    "type": "Commande signalisation",
    "station": "A-SM1",
    "description": "DO7"
   },
   {
-   "adresse": 442,
+   "adresse": 432,
    "nom": "A-F1_SIRENE",
    "type": "Commande signalisation",
    "station": "A-F1",
    "description": "DO3"
   },
   {
-   "adresse": 443,
+   "adresse": 433,
    "nom": "A-F2_SIRENE",
    "type": "Commande signalisation",
    "station": "A-F2",
@@ -210,146 +210,6 @@
    "type": "Comflag (1 = perte comm)",
    "station": "A-RR",
    "description": "calculé par IO Plus"
-  },
-  {
-   "adresse": 15202,
-   "nom": "A-SM1_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-SM1",
-   "description": ""
-  },
-  {
-   "adresse": 15203,
-   "nom": "A-F1_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-F1",
-   "description": ""
-  },
-  {
-   "adresse": 15204,
-   "nom": "A-F2_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-F2",
-   "description": ""
-  },
-  {
-   "adresse": 15205,
-   "nom": "A-F3_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-F3",
-   "description": ""
-  },
-  {
-   "adresse": 15206,
-   "nom": "A-RR_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-RR",
-   "description": ""
-  },
-  {
-   "adresse": 15302,
-   "nom": "A-SM1_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "A-SM1",
-   "description": ""
-  },
-  {
-   "adresse": 15303,
-   "nom": "A-F1_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "A-F1",
-   "description": ""
-  },
-  {
-   "adresse": 15304,
-   "nom": "A-F2_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "A-F2",
-   "description": ""
-  },
-  {
-   "adresse": 15305,
-   "nom": "A-F3_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "A-F3",
-   "description": ""
-  },
-  {
-   "adresse": 15306,
-   "nom": "A-RR_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "A-RR",
-   "description": ""
-  },
-  {
-   "adresse": 15402,
-   "nom": "A-SM1_DET_FAIL",
-   "type": "Échec lecture",
-   "station": "A-SM1",
-   "description": ""
-  },
-  {
-   "adresse": 15406,
-   "nom": "A-RR_DET_FAIL",
-   "type": "Échec lecture",
-   "station": "A-RR",
-   "description": ""
-  },
-  {
-   "adresse": 15502,
-   "nom": "A-SM1_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "A-SM1",
-   "description": ""
-  },
-  {
-   "adresse": 15503,
-   "nom": "A-F1_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "A-F1",
-   "description": ""
-  },
-  {
-   "adresse": 15504,
-   "nom": "A-F2_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "A-F2",
-   "description": ""
-  },
-  {
-   "adresse": 15505,
-   "nom": "A-F3_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "A-F3",
-   "description": ""
-  },
-  {
-   "adresse": 15602,
-   "nom": "A-SM1_MAINV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-SM1",
-   "description": ""
-  },
-  {
-   "adresse": 15603,
-   "nom": "A-F1_MAINV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-F1",
-   "description": ""
-  },
-  {
-   "adresse": 15604,
-   "nom": "A-F2_MAINV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-F2",
-   "description": ""
-  },
-  {
-   "adresse": 15606,
-   "nom": "A-RR_MAINV_FAIL",
-   "type": "Échec lecture",
-   "station": "A-RR",
-   "description": ""
   },
   {
    "adresse": 30501,
@@ -652,7 +512,7 @@
      "fail": 15502,
      "paires": [
       [
-       441,
+       431,
        7
       ]
      ],
@@ -675,7 +535,7 @@
        2
       ],
       [
-       442,
+       432,
        3
       ]
      ],
@@ -698,7 +558,7 @@
        2
       ],
       [
-       443,
+       433,
        3
       ]
      ],

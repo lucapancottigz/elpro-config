@@ -209,15 +209,27 @@ class TestVersion(unittest.TestCase):
 
 
 
+class TestRegistres(unittest.TestCase):
+    def test_pas_de_registres_echec(self):
+        """Les registres d'échec (152xx–157xx, 15501) ne figurent pas dans la liste des registres."""
+        for nom in ('demo_site_A', 'demo_site_B'):
+            plan = M.calculer_plan(charger(nom))
+            adr = [r['adresse'] for r in plan['registres']]
+            self.assertFalse([a for a in adr if 15200 <= a <= 15799], nom)
+            self.assertTrue(any(15101 <= a <= 15117 for a in adr))            # les comflags restent
+            B = plan['stations'][0]
+            self.assertTrue(all(m['fail'] for m in B['reads']))                # toujours utilisés par les mappings
+
+
 class TestFeu(unittest.TestCase):
     """Feu à 4 sorties : rouge, orange clignotant, orange fixe, vert."""
     def test_registres_4_sorties(self):
         plan = M.calculer_plan(charger('demo_site_B'))
         F3 = next(S for S in plan['stations'] if S['nom'] == 'B-F3')
         self.assertEqual([(c['adresse'], c['do']) for c in F3['commandes']],
-                         [(403, [1]), (413, [2]), (423, [3]), (433, [4])])
+                         [(403, [1]), (413, [2]), (423, [3]), (443, [4])])
         autres = sorted(r['adresse'] for r in plan['registres'] if r['type'] == 'Commande signalisation')
-        self.assertEqual(autres, list(range(441, 448)))                       # autres signalisations : 441-450
+        self.assertEqual(autres, list(range(431, 438)))                       # autres signalisations : 431-440 (vert : 441-450)
         self.assertEqual(plan['stations'][0]['failsafe'][0], (401, 50))       # fail-safe 401-450
 
     def test_ancien_format(self):

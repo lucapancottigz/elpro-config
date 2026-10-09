@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 17 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents.
+Résultat attendu : `Ran 18 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -51,6 +51,7 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] Générer à nouveau sans rien changer : reste V2.0 (aucune modification).
 - [ ] Enregistrer, fermer, rouvrir : la version affichée est V2.0 ; générer sans modification : V2.0.
 - [ ] Feu : la fenêtre propose Rouge, Orange clignotant, Orange fixe, Vert. Rouge seul → refusé ; rouge + orange fixe → accepté.
-- [ ] `demo_site_B`, radio B-F3 : registres 403 (rouge), 413 (orange clignotant), 423 (orange fixe), 433 (vert) ; autres signalisations à partir de 441.
+- [ ] `demo_site_B`, radio B-F3 : registres 403 (rouge), 413 (orange clignotant), 423 (orange fixe), 443 (vert) ; autres signalisations à partir de 431.
+- [ ] Liste des registres (page 2, PDF, Excel) : aucun registre d'échec 152xx–157xx ni 15501 ; les comflags 151xx sont présents.
 - [ ] Ouvrir un ancien projet (avec `do_orange`) : l'orange apparaît en « Orange clignotant », le titre affiche `*`, et l'enregistrement écrit `do_orange_cli`.
 

@@ -358,10 +358,21 @@ def main():
     verifier(sorted(os.listdir(d_fr)) == ['IOPlus_B-BASE_V1.0_DESACTIVE.sconf', 'IOPlus_B-SM3_V1.0_DESACTIVE.sconf'],
              'demo_site_B : 2 .sconf (B-BASE et B-SM3)')
     cmd = {c['nom']: c['adresse'] for S in p2.plan['stations'] for c in S['commandes']}
-    verifier([cmd.get(f'B-F3_F3_{c}') for c in ('ROUGE', 'ORANGE_CLI', 'ORANGE_FIXE', 'VERT')] == [403, 413, 423, 433],
-             'demo_site_B : B-F3 commandes 403, 413, 423, 433')
-    verifier(min(a for n, a in cmd.items() if not n.endswith(('_ROUGE', '_ORANGE_CLI', '_ORANGE_FIXE', '_VERT'))) == 441,
-             'demo_site_B : autres signalisations à partir de 441')
+    verifier([cmd.get(f'B-F3_F3_{c}') for c in ('ROUGE', 'ORANGE_CLI', 'ORANGE_FIXE', 'VERT')] == [403, 413, 423, 443],
+             'demo_site_B : B-F3 commandes 403, 413, 423, 443')
+    autres = sorted(a for n, a in cmd.items() if not n.endswith(('_ROUGE', '_ORANGE_CLI', '_ORANGE_FIXE', '_VERT')))
+    verifier(autres == list(range(431, 438)), 'demo_site_B : autres signalisations en 431–437')
+
+    def echec(a):
+        return 15200 <= int(a) <= 15799        # registres d'échec 152xx–157xx (15501 compris)
+    import views
+    noms_io = [l[2] for ch, n in p2.noeuds.items() if ch[-1:] == ('IO',) for t in n['contenu'] for l in t['lignes']]
+    xl = next(o for o in views.donnees_excel(p2.plan) if o['onglet'] == 'Registres base')['lignes']
+    pdf = [l[0] for sec in views.donnees_pdf(p2.plan) if sec['titre'].startswith('3.') for b in sec['blocs'] for l in b['lignes']]
+    verifier(noms_io and xl and pdf and not any(echec(a) for a in [r['adresse'] for r in p2.plan['registres']] + noms_io
+                                                 + [l[0] for l in xl] + pdf),
+             'liste des registres (page 2 › IO, Excel, PDF) : aucun registre 152xx–157xx ni 15501')
+    verifier(any(15101 <= int(a) <= 15199 for a in noms_io), 'liste des registres : comflags 151xx présents')
 
     print('Version de configuration')
     F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))

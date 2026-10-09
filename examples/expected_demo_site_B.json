@@ -51,60 +51,60 @@
    "description": "DO3"
   },
   {
-   "adresse": 433,
-   "nom": "B-F3_F3_VERT",
-   "type": "Commande feu vert",
-   "station": "B-F3",
-   "description": "DO4"
-  },
-  {
-   "adresse": 441,
+   "adresse": 431,
    "nom": "B-BASE_SIRENE",
    "type": "Commande signalisation",
    "station": "B-BASE",
    "description": "DO7"
   },
   {
-   "adresse": 442,
+   "adresse": 432,
    "nom": "B-F2_SIRENE",
    "type": "Commande signalisation",
    "station": "B-F2",
    "description": "DO3"
   },
   {
-   "adresse": 443,
+   "adresse": 433,
    "nom": "B-CAM01_CAMON_SPOTON",
    "type": "Commande signalisation",
    "station": "B-CAM01",
    "description": "DO1+DO2"
   },
   {
-   "adresse": 444,
+   "adresse": 434,
    "nom": "B-SIR3_DO1",
    "type": "Commande signalisation",
    "station": "B-SIR3",
    "description": "DO1"
   },
   {
-   "adresse": 445,
+   "adresse": 435,
    "nom": "B-SIR3_SIRENE_FLASH",
    "type": "Commande signalisation",
    "station": "B-SIR3",
    "description": "DO2"
   },
   {
-   "adresse": 446,
+   "adresse": 436,
    "nom": "B-SIR4_SIRENE",
    "type": "Commande signalisation",
    "station": "B-SIR4",
    "description": "DO1"
   },
   {
-   "adresse": 447,
+   "adresse": 437,
    "nom": "B-SIR4_FLASH",
    "type": "Commande signalisation",
    "station": "B-SIR4",
    "description": "DO2"
+  },
+  {
+   "adresse": 443,
+   "nom": "B-F3_F3_VERT",
+   "type": "Commande feu vert",
+   "station": "B-F3",
+   "description": "DO4"
   },
   {
    "adresse": 10501,
@@ -315,195 +315,6 @@
    "type": "Comflag (1 = perte comm)",
    "station": "B-SM3",
    "description": "calculé par IO Plus"
-  },
-  {
-   "adresse": 15202,
-   "nom": "B-SM1_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM1",
-   "description": ""
-  },
-  {
-   "adresse": 15203,
-   "nom": "B-SM2_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM2",
-   "description": ""
-  },
-  {
-   "adresse": 15204,
-   "nom": "B-F2_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "B-F2",
-   "description": ""
-  },
-  {
-   "adresse": 15205,
-   "nom": "B-F3_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "B-F3",
-   "description": ""
-  },
-  {
-   "adresse": 15206,
-   "nom": "B-CAM01_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "B-CAM01",
-   "description": ""
-  },
-  {
-   "adresse": 15207,
-   "nom": "B-SIR3_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SIR3",
-   "description": ""
-  },
-  {
-   "adresse": 15208,
-   "nom": "B-SIR4_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SIR4",
-   "description": ""
-  },
-  {
-   "adresse": 15209,
-   "nom": "B-SM3_BATTV_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM3",
-   "description": ""
-  },
-  {
-   "adresse": 15302,
-   "nom": "B-SM1_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM1",
-   "description": ""
-  },
-  {
-   "adresse": 15303,
-   "nom": "B-SM2_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM2",
-   "description": ""
-  },
-  {
-   "adresse": 15304,
-   "nom": "B-F2_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "B-F2",
-   "description": ""
-  },
-  {
-   "adresse": 15305,
-   "nom": "B-F3_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "B-F3",
-   "description": ""
-  },
-  {
-   "adresse": 15306,
-   "nom": "B-CAM01_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "B-CAM01",
-   "description": ""
-  },
-  {
-   "adresse": 15307,
-   "nom": "B-SIR3_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SIR3",
-   "description": ""
-  },
-  {
-   "adresse": 15308,
-   "nom": "B-SIR4_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SIR4",
-   "description": ""
-  },
-  {
-   "adresse": 15309,
-   "nom": "B-SM3_RSSI_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM3",
-   "description": ""
-  },
-  {
-   "adresse": 15402,
-   "nom": "B-SM1_DET_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM1",
-   "description": ""
-  },
-  {
-   "adresse": 15403,
-   "nom": "B-SM2_DET_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM2",
-   "description": ""
-  },
-  {
-   "adresse": 15406,
-   "nom": "B-CAM01_DET_FAIL",
-   "type": "Échec lecture",
-   "station": "B-CAM01",
-   "description": ""
-  },
-  {
-   "adresse": 15409,
-   "nom": "B-SM3_DET_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM3",
-   "description": ""
-  },
-  {
-   "adresse": 15501,
-   "nom": "B-BASE_SGNL_FAIL",
-   "type": "Échec commandes locales",
-   "station": "B-BASE",
-   "description": ""
-  },
-  {
-   "adresse": 15504,
-   "nom": "B-F2_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "B-F2",
-   "description": ""
-  },
-  {
-   "adresse": 15505,
-   "nom": "B-F3_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "B-F3",
-   "description": ""
-  },
-  {
-   "adresse": 15506,
-   "nom": "B-CAM01_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "B-CAM01",
-   "description": ""
-  },
-  {
-   "adresse": 15507,
-   "nom": "B-SIR3_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "B-SIR3",
-   "description": ""
-  },
-  {
-   "adresse": 15508,
-   "nom": "B-SIR4_SGNL_FAIL",
-   "type": "Échec envoi commandes",
-   "station": "B-SIR4",
-   "description": ""
-  },
-  {
-   "adresse": 15709,
-   "nom": "B-SM3_RADAR_FAIL",
-   "type": "Échec lecture",
-   "station": "B-SM3",
-   "description": ""
   },
   {
    "adresse": 30501,
@@ -923,7 +734,7 @@
        6
       ],
       [
-       441,
+       431,
        7
       ]
      ],
@@ -946,7 +757,7 @@
        2
       ],
       [
-       442,
+       432,
        3
       ]
      ],
@@ -973,7 +784,7 @@
        3
       ],
       [
-       433,
+       443,
        4
       ]
      ],
@@ -988,11 +799,11 @@
      "fail": 15506,
      "paires": [
       [
-       443,
+       433,
        1
       ],
       [
-       443,
+       433,
        2
       ]
      ],
@@ -1007,11 +818,11 @@
      "fail": 15507,
      "paires": [
       [
-       444,
+       434,
        1
       ],
       [
-       445,
+       435,
        2
       ]
      ],
@@ -1026,11 +837,11 @@
      "fail": 15508,
      "paires": [
       [
-       446,
+       436,
        1
       ],
       [
-       447,
+       437,
        2
       ]
      ],

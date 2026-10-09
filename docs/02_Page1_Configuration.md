@@ -99,7 +99,7 @@ Dans les listes DI/DO/AI, les entrées déjà prises par un autre périphérique
    1. `projet, niveau = M.preparer_generation(projet)` : calcule la nouvelle version (voir `03_Modele_de_donnees.md`, « Version de configuration ») ;
    2. `plan = M.calculer_plan(projet)`, garder `plan` en mémoire, remplir la page 2, basculer sur l'onglet 2 ;
    3. mettre à jour l'affichage **Version de configuration** ;
-   4. Après une génération réussie, si le projet a changé (première génération, ou version incrémentée) : marquer le projet « non enregistré » (`*`), car `derniere_generation` et la version doivent être enregistrées. Une nouvelle génération sans aucune modification ne marque pas le projet. Afficher dans tous les cas dans la barre d’état (8 s) « Configuration générée — version V<x.y> (modification majeure | mineure | aucune modification) ».
+   4. Après une génération réussie, si le projet a changé (première génération, ou version incrémentée) : marquer le projet « non enregistré » (`*`), car `derniere_generation` et la version doivent être enregistrées. Une nouvelle génération sans aucune modification ne marque pas le projet. Afficher dans tous les cas dans la barre d'état (8 s) « Configuration générée — version V<x.y> (modification majeure | mineure | aucune modification) ».
 
    **Important :** la version et `derniere_generation` sont stockées dans le `.elpro.json`. Si l'utilisateur n'enregistre pas le projet après une génération, la génération suivante repartira de l'ancienne référence. À la fermeture ou à « Nouveau »/« Ouvrir », la demande de confirmation habituelle (« modifications non enregistrées ») couvre ce cas.
 

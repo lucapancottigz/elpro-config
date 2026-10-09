@@ -2,6 +2,12 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.2.0] — 2026-10-09
+
+### Modifié
+- Numérotation des commandes : autres signalisations en 431–440 (comme avant la 1.1.0), feu vert déplacé en 441–450. Les sites existants gardent leurs adresses.
+- Les registres d'échec (152xx–157xx, 15501) ne figurent plus dans la liste des registres (page 2, PDF, Excel). Ils restent utilisés par les radios.
+
 ## [1.1.0] — 2026-10-09
 
 ### Ajouté
@@ -35,5 +41,6 @@ Première version publique (retirée, remplacée par la 1.0.1).
 - Deux projets de démonstration fictifs (`demo_site_A`, `demo_site_B`).
 - Installateur Windows pour tous les utilisateurs, avec icône sur le bureau et raccourci dans le menu Démarrer (au choix).
 
+[1.2.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.2.0
 [1.1.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.1.0
 [1.0.1]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.0.1

@@ -86,7 +86,9 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 
 **Ancien format du feu** (`do_orange`, avant la v1.5 du moteur) : `M.normaliser_projet(projet)` le convertit en `do_orange_cli` (l'ancien orange était un orange clignotant) et ajoute `do_orange_fixe: null`. `M.valider`, `M.calculer_plan` et `M.preparer_generation` appliquent cette conversion d'eux-mêmes ; l'interface l'appelle à l'ouverture pour que le fichier enregistré soit au nouveau format.
 
-**Registres de commande** (base) : rouge 401–410, orange clignotant 411–420, orange fixe 421–430, vert 431–440 (n = numéro du feu sur le site), autres signalisations 441–450. Fail-safe des commandes : 401 × 50.
+**Registres de commande** (base) : rouge 401–410, orange clignotant 411–420, orange fixe 421–430, autres signalisations 431–440, **vert 441–450** (n = numéro du feu sur le site). Les sites existants gardent ainsi leurs adresses ; le vert est simplement ajouté à la fin. Fail-safe des commandes : 401 × 50.
+
+**Liste des registres** (`plan['registres']`, page 2, PDF, Excel, noms dans le `.cdb`) : elle ne contient **pas** les registres d'échec (152xx–157xx, 15501). Ces registres restent utilisés par les mappings et l'IO Plus, mais n'ont pas d'intérêt pour l'exploitation.
 
 Plages : `di` et `do` de 1 à 8 ; `ai` de 1 à 4 ; une même DI/DO/AI ne peut servir qu'une fois dans la radio (MAINV compris).
 
