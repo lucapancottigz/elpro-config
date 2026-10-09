@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
-Moteur de génération ELPRO GeoAzimut — IMPLÉMENTATION DE RÉFÉRENCE.
+Moteur de génération ELPRO GeoAzimut (v1.6) — IMPLÉMENTATION DE RÉFÉRENCE.
 
 Entrée  : un projet (dict, format décrit dans 03_Modele_de_donnees.md).
 Sorties : - plan (dict)            -> utilisé par la page 2, le PDF et l'Excel
@@ -40,9 +40,11 @@ TYPES_SORTIE_SIMPLE = ('SIRENE', 'FLASH', 'SIRENE_FLASH', 'CAMERA', 'SPOT', 'SOR
 TYPES = set(TYPES_ENTREE) | set(TYPES_SORTIE_SIMPLE) | {'FEU', 'CAMERA_SPOT', 'RADAR'}
 
 # Sorties d'un feu : (clé JSON, libellé, base du registre de commande)
+# Plan des commandes : rouge 401-410, orange clignotant 411-420, orange fixe 421-430,
+# autres signalisations 431-440 (inchangé depuis les premiers sites), vert 441-450 (ajouté à la fin)
 SORTIES_FEU = (('do_rouge', 'ROUGE', 400), ('do_orange_cli', 'ORANGE_CLI', 410),
-               ('do_orange_fixe', 'ORANGE_FIXE', 420), ('do_vert', 'VERT', 430))
-BASE_AUTRES = 440            # commandes autres signalisations : 441-450
+               ('do_orange_fixe', 'ORANGE_FIXE', 420), ('do_vert', 'VERT', 440))
+BASE_AUTRES = 430            # commandes autres signalisations : 431-440
 FAILSAFE_COMMANDES = (401, 50)
 
 
@@ -321,8 +323,8 @@ def valider(projet):
     nb_feux = sum(1 for r in radios for p in r.get('peripheriques', []) if p.get('type') == 'FEU')
     nb_autres = sum(1 for r in radios for p in r.get('peripheriques', [])
                     if p.get('type') in TYPES_SORTIE_SIMPLE or p.get('type') == 'CAMERA_SPOT')
-    if nb_feux > 10: E.append(f'{nb_feux} feux : maximum 10 (registres 401–440).')
-    if nb_autres > 10: E.append(f'{nb_autres} signalisations autres : maximum 10 (registres 441–450).')
+    if nb_feux > 10: E.append(f'{nb_feux} feux : maximum 10 (registres 401–430 et 441–450).')
+    if nb_autres > 10: E.append(f'{nb_autres} signalisations autres : maximum 10 (registres 431–440).')
     return E
 
 
@@ -394,7 +396,7 @@ def calculer_plan(projet):
                 lab, t, nom = None, None, f"{S['nom']}_NON_UTILISE_DI{d}"
             S['detections'].append({'di': d, 'adresse': adr, 'nom': nom, 'label': lab, 'type': t})
             reg(adr, nom, 'Détection', S['nom'], f'DI{d}' + ('' if lab else ' (non câblée)'))
-    # ---- commandes : rouge 401-410, orange clignotant 411-420, orange fixe 421-430, vert 431-440, autres 441-450
+    # ---- commandes : rouge 401-410, orange clignotant 411-420, orange fixe 421-430, autres 431-440, vert 441-450
     n_feu, n_autre = 0, 0
     for S in st:
         for p in S['periph']:
@@ -442,18 +444,8 @@ def calculer_plan(projet):
             reg(int(f'105{xx}'), f"{S['nom']}_MAINV", 'Secteur présent', S['nom'], f"DI{S['mainv'].get('di', 8)}")
         if S['role'] != 'base':
             reg(int(f'151{xx}'), f"{S['nom']}_COMFLAG", 'Comflag (1 = perte comm)', S['nom'], 'calculé par IO Plus')
-            reg(int(f'152{xx}'), f"{S['nom']}_BATTV_FAIL", 'Échec lecture', S['nom'], '')
-            reg(int(f'153{xx}'), f"{S['nom']}_RSSI_FAIL", 'Échec lecture', S['nom'], '')
-            if S['detections']:
-                reg(int(f'154{xx}'), f"{S['nom']}_DET_FAIL", 'Échec lecture', S['nom'], '')
-            if S['commandes']:
-                reg(int(f'155{xx}'), f"{S['nom']}_SGNL_FAIL", 'Échec envoi commandes', S['nom'], '')
-            if S['mainv']:
-                reg(int(f'156{xx}'), f"{S['nom']}_MAINV_FAIL", 'Échec lecture', S['nom'], '')
-            if S['radars']:
-                reg(int(f'157{xx}'), f"{S['nom']}_RADAR_FAIL", 'Échec lecture', S['nom'], '')
-    if base['commandes']:
-        reg(15501, f"{base['nom']}_SGNL_FAIL", 'Échec commandes locales', base['nom'], '')
+            # Les registres d'échec (152xx–157xx, 15501) restent utilisés par les mappings et l'IO Plus,
+            # mais ne figurent pas dans la liste des registres : sans intérêt pour l'exploitation.
 
     # ---- créneaux de polling
     rem = st[1:]
