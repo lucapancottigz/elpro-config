@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 20 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar.
+Résultat attendu : `Ran 22 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar, tableau de bord de la base.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -59,4 +59,6 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 
 - [ ] Tous les noms de registres (I/O Register Name Configuration) et de tags du tableau de bord font 16 caractères au plus. Sur la radio, le tableau de bord n'affiche plus de « DIn1 », « DOut5 »…
 - [ ] Radar avec échelle 0–1000 cm, seuil 500 cm : tableau de bord en cm, alarme haute à 500 cm ; dans le JSON, `seuil_haut_ma` = 12.0.
+- [ ] Tableau de bord de la base : toutes les alarmes, une seule commande par genre (1 feu rouge, 1 orange clignotant…), tous les BATTV, MAINV, RSSI et comflags ; au plus 50 éléments.
+- [ ] `demo_site_B` (57 éléments) : les RSSI sont retirés du tableau de bord de la base et une boîte « Configuration générée avec des remarques » s'affiche.
 

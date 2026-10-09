@@ -1267,7 +1267,7 @@
     "Dot6": "F1_OR_CLI",
     "Dot7": "SIRENE"
    },
-   "nb_tags": 63,
+   "nb_tags": 49,
    "groupes": [
     [
      "Alarmes",
@@ -1279,7 +1279,7 @@
     ],
     [
      "Signalisations",
-     15
+     9
     ],
     [
      "Status - MAINV",
@@ -1288,10 +1288,6 @@
     [
      "Status - BATTV",
      9
-    ],
-    [
-     "Status - RSSI",
-     8
     ],
     [
      "Status - FLAGC",

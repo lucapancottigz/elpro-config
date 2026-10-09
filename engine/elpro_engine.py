@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
-Moteur de génération ELPRO GeoAzimut (v1.7) — IMPLÉMENTATION DE RÉFÉRENCE.
+Moteur de génération ELPRO GeoAzimut (v1.8) — IMPLÉMENTATION DE RÉFÉRENCE.
 
 Entrée  : un projet (dict, format décrit dans 03_Modele_de_donnees.md).
 Sorties : - plan (dict)            -> utilisé par la page 2, le PDF et l'Excel
@@ -454,7 +454,8 @@ def calculer_plan(projet):
                     if p.get(cle) is not None:
                         adr = base_r + n_feu
                         nom = nomu(S['nom'], f"{p['nom']}_{coul}")
-                        S['commandes'].append({'adresse': adr, 'nom': nom, 'do': [p[cle]], 'label': f"{p['nom']}_{coul}"})
+                        S['commandes'].append({'adresse': adr, 'nom': nom, 'do': [p[cle]], 'label': f"{p['nom']}_{coul}",
+                                              'genre': f'FEU_{coul}'})
                         reg(adr, nom, f"Commande feu {LIBELLES_FEU[coul]}",
                             S['nom'], f"DO{p[cle]}")
             elif t in TYPES_SORTIE_SIMPLE or t == 'CAMERA_SPOT':
@@ -462,7 +463,7 @@ def calculer_plan(projet):
                 adr = BASE_AUTRES + n_autre
                 nom = nomu(S['nom'], p['nom'])
                 dos = [p['do']] if t != 'CAMERA_SPOT' else [p['do_camera'], p['do_spot']]
-                S['commandes'].append({'adresse': adr, 'nom': nom, 'do': dos, 'label': p['nom']})
+                S['commandes'].append({'adresse': adr, 'nom': nom, 'do': dos, 'label': p['nom'], 'genre': t})
                 reg(adr, nom, 'Commande signalisation', S['nom'], '+'.join(f'DO{d}' for d in dos))
     # ---- radars 352nn
     rn = 0
@@ -602,10 +603,13 @@ def calculer_plan(projet):
     base['iop'] = lignes
 
     # ---- noms (UserIOsInfo), noms d'E/S, dashboards
+    avertissements = []
     for S in st:
         construire_noms_et_dashboard(S, st, registres)
+        avertissements += S.pop('_avert', [])
 
     return {'systeme': dict(s), 'stations': st, 'T': T, 'creneaux': creneaux,
+            'avertissements': avertissements,
             'registres': sorted(registres, key=lambda r: r['adresse']),
             'genere_le': datetime.datetime.now().strftime('%d.%m.%Y %H:%M'),
             'version_config': version_config(projet)}
@@ -661,6 +665,7 @@ def bloc_radar(R):
     return L
 
 
+MAX_TAGS = 50                # tableau de bord ELPRO : 50 tags au maximum (table Tags, maxrows 50)
 TAG_OK = ('OK/NOK', 2, 0, 1, 0, 16384, 49152, 0, 100)
 TAG_ONOFF = ('ON/OFF', 2, 0, 1, 0, 16384, 49152, 0, 100)
 TAG_VB = ('V', 16, 9, 14.5, 11.5, 8192, 49152, 0, 40)
@@ -708,7 +713,13 @@ def construire_noms_et_dashboard(S, st, registres):
         if g: tags += g; groupes.append(('Alarmes', len(g)))
         g = [tag_radar(R['nom'], R['adresse'], R) for X in st for R in X['radars']]
         if g: tags += g; groupes.append(('Radars', len(g)))
-        g = [tag(c['nom'], c['adresse'], TAG_ONOFF) for X in st for c in X['commandes']]
+        # une seule commande de chaque genre (feu rouge, orange clignotant, orange fixe, vert, sirène…) :
+        # le tableau de bord de la base est limité à 50 tags
+        vus, g = set(), []
+        for X in st:
+            for c in X['commandes']:
+                if c['genre'] not in vus:
+                    vus.add(c['genre']); g.append(tag(c['nom'], c['adresse'], TAG_ONOFF))
         if g: tags += g; groupes.append(('Signalisations', len(g)))
         g = [tag(f"MAINV {X['nom']}", int(f"105{X['xx']}"), TAG_OK) for X in st if X['mainv']]
         if g: tags += g; groupes.append(('Status - MAINV', len(g)))
@@ -718,6 +729,21 @@ def construire_noms_et_dashboard(S, st, registres):
         if g: tags += g; groupes.append(('Status - RSSI', len(g)))
         g = [tag(f"CFLAG {X['nom']}", int(f"151{X['xx']}"), TAG_OK) for X in st[1:]]
         if g: tags += g; groupes.append(('Status - FLAGC', len(g)))
+        # limite ELPRO : 50 tags. Au-delà, les RSSI sont retirés en premier.
+        if len(tags) > MAX_TAGS:
+            n_rssi = dict(groupes).get('Status - RSSI', 0)
+            tags = [t for t in tags if t['unites'] != 'dBm']
+            groupes = [gr for gr in groupes if gr[0] != 'Status - RSSI']
+            S['_avert'] = [f"Tableau de bord de {S['nom']} : {len(tags) + n_rssi} éléments pour {MAX_TAGS} au maximum. "
+                           f"Les {n_rssi} RSSI ont été retirés (registres 351xx toujours disponibles)."]
+            if len(tags) > MAX_TAGS:
+                S['_avert'].append(f"Tableau de bord de {S['nom']} : encore {len(tags)} éléments après retrait des RSSI ; "
+                                   f"seuls les {MAX_TAGS} premiers sont gardés.")
+                tags = tags[:MAX_TAGS]
+                reste, groupes2 = MAX_TAGS, []
+                for nomg, nb in groupes:
+                    if reste > 0: groupes2.append((nomg, min(nb, reste))); reste -= nb
+                groupes = groupes2
     else:
         if S['mainv']: noms.append((10000 + S['mainv'].get('di', 8), 'MAINV'))
         g = []

@@ -307,9 +307,26 @@ def main():
              and F.mention.parent() is not None, 'Barre d\'état : « © 2026 Geoazimut SàRL — geoazimut.com »')
 
     print('Page 2')
+
+    def tableau_base():
+        """Tags du tableau de bord de la base et contrôle « une seule commande par genre »."""
+        B = p2.plan['stations'][0]
+        genres = {}
+        for S in p2.plan['stations']:
+            for c in S['commandes']:
+                genres.setdefault(c['genre'], c['nom'])      # première commande de chaque genre, ordre du site
+        cmd = [t['nom'] for t in B['tags'] if 401 <= t['registre'] <= 450]
+        return B['tags'], dict(B['groupes']), cmd == list(genres.values())
     F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))
+    MESSAGES.clear()
     F.generer()
     verifier(F.onglets.currentIndex() == 1 and p2.plan is not None, 'demo_site_A généré, page 2 affichée')
+    verifier(not any(m[1] == 'Configuration générée avec des remarques' for m in MESSAGES),
+             'demo_site_A : pas de boîte de remarques')
+    tags, groupes, un_par_genre = tableau_base()
+    verifier(len(tags) == 36 and un_par_genre and groupes.get('Status - RSSI') == 5
+             and sum(t['unites'] == 'dBm' for t in tags) == 5,
+             'demo_site_A : tableau de bord de la base, 36 éléments, une commande par genre, RSSI présents')
     racine = p2.arbre.topLevelItem(0)
     noms = [racine.child(i).text(0) for i in range(racine.childCount())]
     verifier(racine.text(0) == 'Demo Site A' and noms == ['IP Address List', 'Units'], 'arbre racine')
@@ -353,7 +370,16 @@ def main():
              and not p2.bandeau.isHidden(), 'modifier la page 1 : page 2 vidée, boutons grisés, bandeau')
 
     F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
+    MESSAGES.clear()
     F.generer()
+    m = dernier('information')
+    verifier(m and m[1] == 'Configuration générée avec des remarques' and 'RSSI ont été retirés' in m[2]
+             and F.onglets.currentIndex() == 1 and p2.plan is not None,
+             'demo_site_B : boîte « Configuration générée avec des remarques » (RSSI retirés), génération valide')
+    tags, groupes, un_par_genre = tableau_base()
+    verifier(len(tags) == 49 <= 50 and un_par_genre and not any(t['unites'] == 'dBm' for t in tags)
+             and list(groupes) == ['Alarmes', 'Radars', 'Signalisations', 'Status - MAINV', 'Status - BATTV', 'Status - FLAGC'],
+             'demo_site_B : tableau de bord de la base, 49 éléments, une commande par genre, sans RSSI')
     d_fr = os.path.join(tmp, 'sconf_fr'); os.makedirs(d_fr); REPONSES['dossier'] = d_fr; p2._export_sconf()
     verifier(sorted(os.listdir(d_fr)) == ['IOPlus_B-BASE_V1.0_DESACTIVE.sconf', 'IOPlus_B-SM3_V1.0_DESACTIVE.sconf'],
              'demo_site_B : 2 .sconf (B-BASE et B-SM3)')

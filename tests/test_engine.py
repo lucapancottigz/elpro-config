@@ -258,6 +258,35 @@ class TestNomsEtRadar(unittest.TestCase):
         self.assertTrue(any('incomplète' in e for e in M.valider(p)))
 
 
+class TestDashboardBase(unittest.TestCase):
+    def test_contenu(self):
+        """Base : toutes les alarmes, une commande de chaque genre, tous les BATTV/MAINV/RSSI/comflags."""
+        plan = M.calculer_plan(charger('demo_site_A')); B = plan['stations'][0]
+        regs = [t['registre'] for t in B['tags']]
+        det = [d['adresse'] for X in plan['stations'] for d in X['detections'] if d['label']]
+        self.assertTrue(set(det) <= set(regs))
+        genres = [c['genre'] for X in plan['stations'] for c in X['commandes']]
+        cmd = [r for r in regs if 401 <= r <= 450]
+        self.assertEqual(len(cmd), len(set(genres)))                            # une par genre
+        self.assertEqual(sorted(r for r in regs if 30500 < r < 30600), [int(f"305{X['xx']}") for X in plan['stations']])
+        self.assertEqual(len([r for r in regs if 15100 < r < 15200]), len(plan['stations']) - 1)
+        self.assertEqual(len([r for r in regs if 35100 < r < 35200]), len(plan['stations']) - 1)
+        self.assertEqual(plan['avertissements'], [])
+        self.assertEqual(sum(n for _g, n in B['groupes']), len(B['tags']))
+
+    def test_limite_50(self):
+        """Plus de 50 tags : les RSSI sont retirés et un avertissement est émis."""
+        p = charger('demo_site_B')
+        modele = p['radios'][1]
+        for i in range(8):                                                     # 17 radios au total
+            p['radios'].append(dict(json.loads(json.dumps(modele)), nom=f'X{i}', ip_octet=130 + i))
+        plan = M.calculer_plan(p); B = plan['stations'][0]
+        self.assertLessEqual(len(B['tags']), M.MAX_TAGS)
+        self.assertFalse(any(t['unites'] == 'dBm' for t in B['tags']))
+        self.assertTrue(plan['avertissements'])
+        self.assertEqual(sum(n for _g, n in B['groupes']), len(B['tags']))
+
+
 class TestFeu(unittest.TestCase):
     """Feu à 4 sorties : rouge, orange clignotant, orange fixe, vert."""
     def test_registres_4_sorties(self):

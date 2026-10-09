@@ -888,7 +888,7 @@
    "noms_io": {
     "Din8": "MAINV"
    },
-   "nb_tags": 41,
+   "nb_tags": 36,
    "groupes": [
     [
      "Alarmes",
@@ -896,7 +896,7 @@
     ],
     [
      "Signalisations",
-     9
+     4
     ],
     [
      "Status - MAINV",

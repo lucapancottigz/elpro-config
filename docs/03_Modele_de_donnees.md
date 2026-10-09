@@ -92,6 +92,8 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 
 **Échelle du radar** : si `mesure_4ma` et `mesure_20ma` sont renseignés, les tableaux de bord affichent le radar dans `unite` (conversion linéaire), et la description du registre 352nn donne la correspondance (`16384 = 4 mA = 0 cm, 49152 = 20 mA = 1000 cm`). Le registre contient toujours la valeur brute 4–20 mA (16384–49152) : une radio ne stocke que des entiers. Les seuils restent enregistrés en mA ; `M.ma_vers_unite(ma, p)` et `M.unite_vers_ma(v, p)` servent à les afficher et à les saisir dans l'unité.
 
+**Tableau de bord de la base** (50 éléments au maximum, limite ELPRO) : toutes les alarmes (détections) et tous les radars ; **une seule commande de chaque genre** (feu rouge, orange clignotant, orange fixe, vert, sirène, flash, caméra…, la première du site) ; tous les BATTV, MAINV, RSSI et comflags. S'il y a plus de 50 éléments, les RSSI sont retirés et `plan['avertissements']` contient un message.
+
 **Noms** : les noms de registres et de tags du tableau de bord sont limités à 16 caractères (`M.NOM_MAX`) et uniques, construits par `M.nom_court(station, libellé)`. Au-delà, la radio affiche un nom d'E/S par défaut (DIn1, DOut5…) à la place.
 
 Plages : `di` et `do` de 1 à 8 ; `ai` de 1 à 4 ; une même DI/DO/AI ne peut servir qu'une fois dans la radio (MAINV compris).
