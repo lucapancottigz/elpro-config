@@ -44,10 +44,10 @@ Tous ouvrent une boîte « Enregistrer sous » / « Choisir un dossier » qui pr
 
 | Bouton | Dialogue | Nom proposé | Appel |
 |---|---|---|---|
-| Générer le .cdb | Enregistrer sous, filtre `*.cdb` | `M.nom_fichier(nom_projet) + '.cdb'` (ex. `Demo_Site_A.cdb`) | `M.ecrire_cdb(plan, chemin)` |
-| Générer les .sconf | Choisir un dossier | un fichier par radio ayant `S['iop']` non vide : `IOPlus_<nom radio>_DESACTIVE.sconf` | pour chaque `S` de `plan['stations']` avec `S['iop']` : `M.ecrire_sconf(S['iop'], os.path.join(dossier, nom))`. Afficher ensuite la liste des fichiers créés. La base en a toujours un ; une remote/un repeater seulement s'il a un radar. |
-| Compte rendu PDF | Enregistrer sous, `*.pdf` | `M.nom_fichier(nom_projet) + '_Compte_rendu.pdf'` | `PDF.ecrire_pdf(V.donnees_pdf(plan), chemin, plan['systeme']['nom_projet'])` |
-| Liste d'adresses Excel | Enregistrer sous, `*.xlsx` | `M.nom_fichier(nom_projet) + '_Adresses.xlsx'` | `XL.ecrire_excel(V.donnees_excel(plan), chemin, plan['systeme']['nom_projet'])` |
+| Générer le .cdb | Enregistrer sous, filtre `*.cdb` | `M.base_nom_fichier(plan) + '.cdb'` (ex. `Demo_Site_A_V2.1.cdb`) | `M.ecrire_cdb(plan, chemin)` |
+| Générer les .sconf | Choisir un dossier | un fichier par radio ayant `S['iop']` non vide : `IOPlus_<nom radio>_V<version>_DESACTIVE.sconf` (ex. `IOPlus_A-BASE_V2.1_DESACTIVE.sconf`) | pour chaque `S` de `plan['stations']` avec `S['iop']` : `M.ecrire_sconf(S['iop'], os.path.join(dossier, nom))`. Afficher ensuite la liste des fichiers créés. La base en a toujours un ; une remote/un repeater seulement s'il a un radar. |
+| Compte rendu PDF | Enregistrer sous, `*.pdf` | `M.base_nom_fichier(plan) + '_Compte_rendu.pdf'` | `PDF.ecrire_pdf(V.donnees_pdf(plan), chemin, f"{plan['systeme']['nom_projet']} — V{plan['version_config']}")` |
+| Liste d'adresses Excel | Enregistrer sous, `*.xlsx` | `M.base_nom_fichier(plan) + '_Adresses.xlsx'` | `XL.ecrire_excel(V.donnees_excel(plan), chemin, f"{plan['systeme']['nom_projet']} — V{plan['version_config']}")` |
 
 Si l'écriture échoue (fichier ouvert dans Excel, droits…) : afficher le message de l'exception, ne rien faire d'autre.
 

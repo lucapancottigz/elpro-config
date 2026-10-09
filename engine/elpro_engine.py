@@ -39,6 +39,32 @@ TYPES_ENTREE = {'CABLE': 1, 'LIDAR3': 3, 'LIDAR6': 6, 'ALARME_BT': 1, 'ENTREE': 
 TYPES_SORTIE_SIMPLE = ('SIRENE', 'FLASH', 'SIRENE_FLASH', 'CAMERA', 'SPOT', 'SORTIE')
 TYPES = set(TYPES_ENTREE) | set(TYPES_SORTIE_SIMPLE) | {'FEU', 'CAMERA_SPOT', 'RADAR'}
 
+# Sorties d'un feu : (clé JSON, libellé, base du registre de commande)
+SORTIES_FEU = (('do_rouge', 'ROUGE', 400), ('do_orange_cli', 'ORANGE_CLI', 410),
+               ('do_orange_fixe', 'ORANGE_FIXE', 420), ('do_vert', 'VERT', 430))
+BASE_AUTRES = 440            # commandes autres signalisations : 441-450
+FAILSAFE_COMMANDES = (401, 50)
+
+
+def normaliser_projet(projet):
+    """Met à jour un projet d'une ancienne version du format (modifie et retourne le dict).
+    - feu à 3 sorties : l'ancienne sortie « do_orange » devient l'orange clignotant (« do_orange_cli »).
+    À appeler à l'ouverture d'un fichier ; valider() et calculer_plan() l'appliquent aussi sur une copie."""
+    for r in projet.get('radios', []):
+        for p in r.get('peripheriques', []):
+            if p.get('type') == 'FEU':
+                if 'do_orange' in p:
+                    p.setdefault('do_orange_cli', p['do_orange']); del p['do_orange']
+                for cle, _l, _b in SORTIES_FEU:
+                    p.setdefault(cle, None)
+    return projet
+
+
+def _normalise(projet):
+    import copy
+    return normaliser_projet(copy.deepcopy(projet))
+
+
 RE_NOM = re.compile(r'^[A-Za-z0-9_-]{1,20}$')
 RE_NOM_PERIPH = re.compile(r'^[A-Za-z0-9_]{1,16}$')
 CARS_INTERDITS = set('<>&"\' ')
@@ -76,7 +102,9 @@ def generer_cle(longueur=24):
 def nom_fichier(texte, defaut='projet'):
     """Nom de fichier propre : toute suite de caractères hors A-Z a-z 0-9 devient un seul '_',
     sans '_' au début ni à la fin.  'Demo Site - A' -> 'Demo_Site_A'."""
-    return re.sub(r'[^A-Za-z0-9]+', '_', texte or '').strip('_') or defaut
+    import unicodedata
+    texte = unicodedata.normalize('NFKD', texte or '').encode('ascii', 'ignore').decode('ascii')   # é -> e
+    return re.sub(r'[^A-Za-z0-9]+', '_', texte).strip('_') or defaut
 
 
 def ma_vers_brut(ma):
@@ -89,9 +117,98 @@ def nettoyer_commentaire(txt):
     return ''.join(c for c in txt if c not in '<>&"\'')[:60]
 
 
+# ---------------------------------------------------------------- version de configuration
+VERSION_DEFAUT = '1.0'
+RE_VERSION = re.compile(r'^(\d{1,4})\.(\d{1,4})$')
+
+
+def version_config(projet):
+    """Version de configuration du projet ('X.Y'). Absente = '1.0'."""
+    return projet.get('version_config') or VERSION_DEFAUT
+
+
+def _contenu(projet):
+    """Partie du projet qui définit la configuration (sans version ni historique), normalisée."""
+    import json as _j
+    return _j.loads(_j.dumps({'systeme': projet.get('systeme', {}), 'radios': projet.get('radios', [])}))
+
+
+def _radios_appariees(anc, nouv):
+    """Associe les radios de l'ancien et du nouveau projet.
+    Par nom ; les noms restants sont considérés comme renommés s'ils occupent les mêmes positions.
+    Retourne la liste des paires (ancienne, nouvelle) ou None si des radios ont été ajoutées/supprimées."""
+    na = [r.get('nom') for r in anc]; nn = [r.get('nom') for r in nouv]
+    if len(na) != len(nn):
+        return None
+    paires = []
+    for i, (a, n) in enumerate(zip(anc, nouv)):
+        if a.get('nom') == n.get('nom'):
+            paires.append((a, n))
+        elif a.get('nom') not in nn and n.get('nom') not in na:
+            paires.append((a, n))                      # renommage sur place
+        else:
+            return None                                # déplacement, ajout ou suppression
+    return paires
+
+
+def _types_periph(r):
+    return sorted(p.get('type', '') for p in r.get('peripheriques', []))
+
+
+def classer_modification(ancien, nouveau):
+    """Compare deux projets. Retourne 'majeure', 'mineure' ou None (aucune modification).
+    Majeure : radio ajoutée, supprimée ou déplacée dans la liste (les numéros de registres changent),
+              périphérique ajouté, supprimé ou remplacé par un autre type,
+              surveillance MAINV activée ou désactivée (un registre lu en plus ou en moins).
+    Mineure : tout autre changement (entrée/sortie d'un périphérique, entrée MAINV, IP, puissance, rôle,
+              amont, nom, inversion, textes, clé...)."""
+    a, n = _contenu(_normalise(ancien)), _contenu(_normalise(nouveau))
+    if a == n:
+        return None
+    paires = _radios_appariees(a['radios'], n['radios'])
+    if paires is None:
+        return 'majeure'
+    if any(_types_periph(x) != _types_periph(y) for x, y in paires):
+        return 'majeure'
+    if any(bool((x.get('mainv') or {}).get('actif')) != bool((y.get('mainv') or {}).get('actif')) for x, y in paires):
+        return 'majeure'                               # MAINV activé/désactivé : un registre lu en plus ou en moins
+    return 'mineure'
+
+
+def prochaine_version(version, niveau):
+    """'2.3' + majeure -> '3.0' ; '2.3' + mineure -> '2.4' ; niveau None -> inchangée."""
+    m = RE_VERSION.match(version or '') or RE_VERSION.match(VERSION_DEFAUT)
+    x, y = int(m.group(1)), int(m.group(2))
+    if niveau == 'majeure':
+        return f'{x + 1}.0'
+    if niveau == 'mineure':
+        return f'{x}.{y + 1}'
+    return f'{x}.{y}'
+
+
+def preparer_generation(projet):
+    """À appeler à chaque « Générer la configuration ».
+    Compare au contenu de la dernière génération (projet['derniere_generation']) et incrémente la version.
+    Première génération (pas d'historique) : la version reste celle du projet (1.0 par défaut).
+    Retourne (nouveau_projet, niveau) ; le projet d'entrée n'est pas modifié."""
+    p = _normalise(projet)
+    ref = p.get('derniere_generation')
+    niveau = classer_modification(ref, p) if ref is not None else None
+    p['version_config'] = prochaine_version(version_config(p), niveau)
+    p['derniere_generation'] = _contenu(p)
+    return p, niveau
+
+
+def base_nom_fichier(plan_ou_projet):
+    """Préfixe commun des fichiers générés : <nom_projet>_V<version>.  ex. 'Demo_Site_A_V2.1'."""
+    s = plan_ou_projet['systeme']
+    return f"{nom_fichier(s['nom_projet'])}_V{plan_ou_projet.get('version_config') or VERSION_DEFAUT}"
+
+
 # ---------------------------------------------------------------- validation
 def valider(projet):
     """Retourne la liste des erreurs (liste vide = projet valide)."""
+    projet = _normalise(projet)
     E = []
     s = projet.get('systeme', {})
     radios = projet.get('radios', [])
@@ -104,6 +221,8 @@ def valider(projet):
         E.append('Système : clé de chiffrement de 8 à 63 caractères ASCII imprimables, sans espace.')
     if not (10 <= int(s.get('puissance_dbm', 34)) <= 40):
         E.append('Système : puissance entre 10 et 40 dBm.')
+    if not RE_VERSION.match(version_config(projet)):
+        E.append('Version de configuration : format X.Y attendu (ex. 2.1).')
     if not radios:
         E.append('Aucune radio.')
         return E
@@ -164,8 +283,6 @@ def valider(projet):
                     elif d in di_used: E.append(f'{n}/{pn} : DI{d} déjà utilisée par {di_used[d]}.')
                     else: di_used[d] = pn
             elif t == 'RADAR':
-                if role == 'base':
-                    E.append(f'{n}/{pn} : un radar ne peut pas être sur la base.')
                 a = p.get('ai')
                 if a not in (1, 2, 3, 4): E.append(f'{n}/{pn} : AI1 à AI4 uniquement (4-20 mA).')
                 elif a in ai_used: E.append(f'{n}/{pn} : AI{a} déjà utilisée par {ai_used[a]}.')
@@ -183,8 +300,10 @@ def valider(projet):
                     if not 1 <= d <= 8: E.append(f'{n}/{pn} : DO{d} n\'existe pas (1 à 8).')
                     elif d in do_used: E.append(f'{n}/{pn} : DO{d} déjà utilisée par {do_used[d]}.')
                     else: do_used[d] = pn
-                if t == 'FEU' and (p.get('do_rouge') is None or p.get('do_orange') is None):
-                    E.append(f'{n}/{pn} : un feu a obligatoirement une sortie rouge et une orange.')
+                if t == 'FEU' and (p.get('do_rouge') is None or
+                                   (p.get('do_orange_cli') is None and p.get('do_orange_fixe') is None)):
+                    E.append(f'{n}/{pn} : un feu a obligatoirement une sortie rouge et au moins une sortie orange '
+                             f'(clignotant ou fixe).')
         radars = sorted(p['ai'] for p in r.get('peripheriques', []) if p.get('type') == 'RADAR' and p.get('ai') in (1, 2, 3, 4))
         if radars and radars != list(range(radars[0], radars[0] + len(radars))):
             E.append(f'{n} : les radars doivent être sur des AI consécutives (ex. AI1+AI2).')
@@ -202,15 +321,15 @@ def valider(projet):
     nb_feux = sum(1 for r in radios for p in r.get('peripheriques', []) if p.get('type') == 'FEU')
     nb_autres = sum(1 for r in radios for p in r.get('peripheriques', [])
                     if p.get('type') in TYPES_SORTIE_SIMPLE or p.get('type') == 'CAMERA_SPOT')
-    if nb_feux > 10: E.append(f'{nb_feux} feux : maximum 10 (registres 401–410).')
-    if nb_autres > 10: E.append(f'{nb_autres} signalisations autres : maximum 10 (registres 431–440).')
+    if nb_feux > 10: E.append(f'{nb_feux} feux : maximum 10 (registres 401–440).')
+    if nb_autres > 10: E.append(f'{nb_autres} signalisations autres : maximum 10 (registres 441–450).')
     return E
 
 
 def sorties_du_periph(p):
     t = p.get('type')
     if t == 'FEU':
-        return [p.get('do_rouge'), p.get('do_orange'), p.get('do_vert')]
+        return [p.get(cle) for cle, _l, _b in SORTIES_FEU]
     if t == 'CAMERA_SPOT':
         return [p.get('do_camera'), p.get('do_spot')]
     if t in TYPES_SORTIE_SIMPLE:
@@ -223,6 +342,7 @@ def calculer_plan(projet):
     err = valider(projet)
     if err:
         raise ValueError('Projet invalide :\n- ' + '\n- '.join(err))
+    projet = _normalise(projet)
     s = projet['systeme']
     radios = projet['radios']
     st = []
@@ -274,22 +394,23 @@ def calculer_plan(projet):
                 lab, t, nom = None, None, f"{S['nom']}_NON_UTILISE_DI{d}"
             S['detections'].append({'di': d, 'adresse': adr, 'nom': nom, 'label': lab, 'type': t})
             reg(adr, nom, 'Détection', S['nom'], f'DI{d}' + ('' if lab else ' (non câblée)'))
-    # ---- commandes 401-440
+    # ---- commandes : rouge 401-410, orange clignotant 411-420, orange fixe 421-430, vert 431-440, autres 441-450
     n_feu, n_autre = 0, 0
     for S in st:
         for p in S['periph']:
             t = p['type']
             if t == 'FEU':
                 n_feu += 1
-                for coul, base_r, cle in (('ROUGE', 400, 'do_rouge'), ('ORANGE', 410, 'do_orange'), ('VERT', 420, 'do_vert')):
+                for cle, coul, base_r in SORTIES_FEU:
                     if p.get(cle) is not None:
                         adr = base_r + n_feu
                         nom = f"{S['nom']}_{p['nom']}_{coul}"
                         S['commandes'].append({'adresse': adr, 'nom': nom, 'do': [p[cle]], 'label': f"{p['nom']}_{coul}"})
-                        reg(adr, nom, f'Commande feu {coul.lower()}', S['nom'], f"DO{p[cle]}")
+                        reg(adr, nom, f"Commande feu {coul.lower().replace('_cli', ' clignotant').replace('_fixe', ' fixe')}",
+                            S['nom'], f"DO{p[cle]}")
             elif t in TYPES_SORTIE_SIMPLE or t == 'CAMERA_SPOT':
                 n_autre += 1
-                adr = 430 + n_autre
+                adr = BASE_AUTRES + n_autre
                 nom = f"{S['nom']}_{p['nom']}"
                 dos = [p['do']] if t != 'CAMERA_SPOT' else [p['do_camera'], p['do_spot']]
                 S['commandes'].append({'adresse': adr, 'nom': nom, 'do': dos, 'label': p['nom']})
@@ -391,9 +512,11 @@ def calculer_plan(projet):
     if base['mainv']:
         dftl.append((10000 + base['mainv'].get('di', 8), 10501))
     dftl += [(30007, 30501), (30401, 35101)]
+    # radar sur la base : copie locale de l'entrée analogique dans son registre 352nn (pas d'IO Plus, pas de radio)
+    dftl += [(30000 + R['ai'], R['adresse']) for R in base['radars']]
     base['scatters'].append(dict(nom=f"{base['nom']}-DFTL", dest='local', periode=0, offset=0, fail=0,
                                  paires=dftl, inv=0, ack=1))
-    base['failsafe'] = [(401, 40)] + [(int(f'15{f}01'), FAILSAFE_COUNT) for f in range(1, 8)]
+    base['failsafe'] = [FAILSAFE_COMMANDES] + [(int(f'15{f}01'), FAILSAFE_COUNT) for f in range(1, 8)]
     base['sensibilite'] = [(30007, 1, SENSIB_BATTV_BASE)]
     base['ack'] = ACK_FORT
     if base['mainv']:
@@ -437,7 +560,8 @@ def calculer_plan(projet):
 
     return {'systeme': dict(s), 'stations': st, 'T': T, 'creneaux': creneaux,
             'registres': sorted(registres, key=lambda r: r['adresse']),
-            'genere_le': datetime.datetime.now().strftime('%d.%m.%Y %H:%M')}
+            'genere_le': datetime.datetime.now().strftime('%d.%m.%Y %H:%M'),
+            'version_config': version_config(projet)}
 
 
 def ligne(op, val, cmt='', I=0, N=0):
@@ -838,18 +962,20 @@ def importer_cdb(chemin):
         for k in ('_ident', '_system_name', '_cle'):
             r.pop(k, None)
     av.append('Les périphériques ne sont pas importés : les ajouter radio par radio.')
-    return {'version': 1, 'systeme': systeme, 'radios': radios}, av
+    return {'version': 1, 'version_config': VERSION_DEFAUT, 'systeme': systeme, 'radios': radios}, av
 
 
 def generer_tout(projet, dossier):
-    """Génère le .cdb et tous les .sconf dans `dossier`. Retourne (plan, liste_fichiers)."""
+    """Génère le .cdb et tous les .sconf dans `dossier`. Retourne (plan, liste_fichiers).
+    Les noms contiennent la version de configuration du projet (voir preparer_generation)."""
     plan = calculer_plan(projet)
     os.makedirs(dossier, exist_ok=True)
-    nom = nom_fichier(plan['systeme']['nom_projet'])
+    nom = base_nom_fichier(plan)
+    v = plan['version_config']
     fichiers = [ecrire_cdb(plan, os.path.join(dossier, f'{nom}.cdb'))]
     for S in plan['stations']:
         if S['iop']:
-            fichiers.append(ecrire_sconf(S['iop'], os.path.join(dossier, f'IOPlus_{S["nom"]}_DESACTIVE.sconf')))
+            fichiers.append(ecrire_sconf(S['iop'], os.path.join(dossier, f'IOPlus_{S["nom"]}_V{v}_DESACTIVE.sconf')))
     return plan, fichiers
 
 

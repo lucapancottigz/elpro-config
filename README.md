@@ -33,6 +33,7 @@
 
 - **Saisie du projet** : système, radios (base, remotes, repeaters), amonts, adresses IP et périphériques câblés (câbles, lidars, feux, sirènes, radars…).
 - **Plan de registres standard** calculé automatiquement : détections, comflags, registres de défaut, tensions, RSSI, commandes.
+- **Version de configuration** `X.Y` incrémentée automatiquement à chaque génération (majeure : radio ou périphérique ajouté/supprimé ; mineure : autre changement), reprise dans le nom de tous les fichiers générés.
 - **Polling et fail-safe** : grille de polling régulière, fail-safe sur tous les registres de défaut.
 - **Visualisation** de la configuration générée, présentée comme dans le logiciel CConfig.
 - **Exports** :

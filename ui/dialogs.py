@@ -34,6 +34,9 @@ LIBELLES = {
 ENTREES_SIMPLES = ('CABLE', 'ALARME_BT', 'ENTREE')
 LIDARS = {'LIDAR3': 3, 'LIDAR6': 6}
 SORTIES_SIMPLES = ('SIRENE', 'FLASH', 'SIRENE_FLASH', 'CAMERA', 'SPOT', 'SORTIE')
+# Sorties d'un feu : (clé JSON, libellé de la liste, abréviation de la colonne Câblage)
+SORTIES_FEU = (('do_rouge', 'Sortie rouge', 'R'), ('do_orange_cli', 'Sortie orange clignotant', 'OC'),
+               ('do_orange_fixe', 'Sortie orange fixe', 'OF'), ('do_vert', 'Sortie verte', 'V'))
 NOM_FIXE = {'LIDAR3': 'LIDAR', 'LIDAR6': 'LIDAR', 'ALARME_BT': 'BT_ALARME', 'SIRENE': 'SIRENE', 'FLASH': 'FLASH',
             'SIRENE_FLASH': 'SIRENE_FLASH', 'CAMERA': 'CAM', 'SPOT': 'SPOT', 'CAMERA_SPOT': 'CAM'}
 
@@ -58,7 +61,7 @@ def texte_cablage(p):
     if t == 'RADAR':
         return f"AI{p.get('ai')} — seuil {nombre_fr(p.get('seuil_haut_ma'))} mA"
     if t == 'FEU':
-        return '/'.join(f'DO{d}' for d in (p.get('do_rouge'), p.get('do_orange'), p.get('do_vert')) if d is not None)
+        return ' · '.join(f'{abr} DO{p[cle]}' for cle, _l, abr in SORTIES_FEU if p.get(cle) is not None)
     if t == 'CAMERA_SPOT':
         return f"DO{p.get('do_camera')}/DO{p.get('do_spot')}"
     if t in SORTIES_SIMPLES:
@@ -125,9 +128,7 @@ class DialoguePeripherique(QDialog):
         self.nom_saisi = existant is not None          # le nom proposé n'est plus remplacé une fois saisi
 
         self.cb_type = QComboBox()
-        for t, lib in LIBELLES.items():
-            if t == 'RADAR' and radio.get('role') == 'base' and not (existant and existant.get('type') == 'RADAR'):
-                continue
+        for t, lib in LIBELLES.items():          # tous les types pour toutes les radios, base comprise
             self.cb_type.addItem(lib, t)
         self.ed_nom = QLineEdit()
         self.ed_nom.setMaxLength(16)
@@ -253,14 +254,15 @@ class DialoguePeripherique(QDialog):
                 self._suite_lidar(n)
             cb0.currentIndexChanged.connect(lambda _: self._suite_lidar(n))
         elif t == 'FEU':
-            r = self._combo('Sortie rouge', 'do_rouge', 'DO', DO, self.occ_do)
-            o = self._combo('Sortie orange', 'do_orange', 'DO', DO, self.occ_do)
-            v = self._combo('Sortie verte', 'do_vert', 'DO', DO, self.occ_do, aucune=True)
+            cbs = {cle: self._combo(lib, cle, 'DO', DO, self.occ_do, aucune=True) for cle, lib, _a in SORTIES_FEU}
             if p:
-                choisir(r, p.get('do_rouge')); choisir(o, p.get('do_orange')); choisir(v, p.get('do_vert'))
-            else:
-                a = premier_libre(DO, self.occ_do); choisir(r, a)
-                choisir(o, premier_libre(DO, self.occ_do, (a,))); choisir(v, None)
+                for cle, cb in cbs.items():
+                    choisir(cb, p.get(cle))
+            else:           # proposé : rouge et orange clignotant sur les premières sorties libres, le reste « aucune »
+                a = premier_libre(DO, self.occ_do)
+                choisir(cbs['do_rouge'], a)
+                choisir(cbs['do_orange_cli'], premier_libre(DO, self.occ_do, (a,)))
+                choisir(cbs['do_orange_fixe'], None); choisir(cbs['do_vert'], None)
         elif t in SORTIES_SIMPLES:
             cb = self._combo('Sortie', 'do', 'DO', DO, self.occ_do)
             choisir(cb, p.get('do') if p else premier_libre(DO, self.occ_do))
@@ -300,8 +302,7 @@ class DialoguePeripherique(QDialog):
         elif t in LIDARS:
             p['di'] = [c[f'di{k}'].currentData() for k in range(LIDARS[t])]
         elif t == 'FEU':
-            p.update(do_rouge=c['do_rouge'].currentData(), do_orange=c['do_orange'].currentData(),
-                     do_vert=c['do_vert'].currentData())
+            p.update({cle: c[cle].currentData() for cle, _l, _a in SORTIES_FEU})
         elif t in SORTIES_SIMPLES:
             p['do'] = c['do'].currentData()
         elif t == 'CAMERA_SPOT':

@@ -96,15 +96,22 @@ class PageConfig(QWidget):
 
         def lab(t):
             l = QLabel(t); l.setAlignment(Qt.AlignRight | Qt.AlignVCenter); return l
+        # version de configuration : calculée par le moteur à chaque génération, jamais saisie
+        self.ed_version = QLineEdit(); self.ed_version.setReadOnly(True); self.ed_version.setMaximumWidth(80)
+        self.lb_version = QLabel()
+        f = self.lb_version.font(); f.setPointSize(8); self.lb_version.setFont(f)
+        version = QHBoxLayout(); version.addWidget(self.ed_version); version.addWidget(self.lb_version, 1)
+
         grille.addWidget(lab('Nom du projet'), 0, 0); grille.addWidget(self.sys['nom_projet'], 0, 1, 1, 3)
         grille.addWidget(lab('System Name'), 0, 4); grille.addWidget(self.sys['system_name'], 0, 5, 1, 3)
+        grille.addWidget(lab('Version de configuration'), 1, 0); grille.addLayout(version, 1, 1, 1, 3)
         cle = QHBoxLayout(); cle.addWidget(self.sys['cle_chiffrement'], 1); cle.addWidget(bt_cle); cle.addWidget(self.bt_oeil)
-        grille.addWidget(lab('Clé de chiffrement'), 1, 0); grille.addLayout(cle, 1, 1, 1, 3)
-        grille.addWidget(lab('Puissance générale'), 1, 4); grille.addWidget(self.sp_puissance, 1, 5)
-        grille.addWidget(lab('Propriétaire'), 2, 0); grille.addWidget(self.sys['proprietaire'], 2, 1)
-        grille.addWidget(lab('Contact'), 2, 2); grille.addWidget(self.sys['contact'], 2, 3)
-        grille.addWidget(lab('Localisation'), 2, 4); grille.addWidget(self.sys['localisation'], 2, 5, 1, 3)
-        grille.addWidget(lab('Description'), 3, 0); grille.addWidget(self.sys['description'], 3, 1, 1, 7)
+        grille.addWidget(lab('Clé de chiffrement'), 2, 0); grille.addLayout(cle, 2, 1, 1, 3)
+        grille.addWidget(lab('Puissance générale'), 2, 4); grille.addWidget(self.sp_puissance, 2, 5)
+        grille.addWidget(lab('Propriétaire'), 3, 0); grille.addWidget(self.sys['proprietaire'], 3, 1)
+        grille.addWidget(lab('Contact'), 3, 2); grille.addWidget(self.sys['contact'], 3, 3)
+        grille.addWidget(lab('Localisation'), 3, 4); grille.addWidget(self.sys['localisation'], 3, 5, 1, 3)
+        grille.addWidget(lab('Description'), 4, 0); grille.addWidget(self.sys['description'], 4, 1, 1, 7)
         for c in (1, 3, 5):
             grille.setColumnStretch(c, 1)
         return g
@@ -215,6 +222,28 @@ class PageConfig(QWidget):
         self.bt_oeil.setChecked(False)
         self._chargement = False
         self._rafraichir_radios(0)
+        self.maj_version()
+
+    def maj_version(self):
+        """Champ « Version de configuration » et libellé d'état (comparaison avec la dernière génération)."""
+        version = M.version_config(self.projet)
+        self.ed_version.setText(f'V{version}')
+        ref = self.projet.get('derniere_generation')
+        if ref is None:
+            texte, couleur = f'Jamais générée — prochaine génération : V{version}', 'gray'
+        else:
+            try:
+                niveau = M.classer_modification(ref, self.projet)
+            except Exception:       # données inattendues : la validation affiche déjà l'erreur
+                niveau = 'majeure'
+            if niveau is None:
+                texte, couleur = f'À jour (dernière génération : V{version})', 'gray'
+            else:
+                texte = (f'Modification {niveau} — prochaine génération : '
+                         f'V{M.prochaine_version(version, niveau)}')
+                couleur = '#E67E00' if niveau == 'majeure' else 'gray'
+        self.lb_version.setText(texte)
+        self.lb_version.setStyleSheet(f'color: {couleur};')
 
     def radio_courante(self):
         i = self.index_courant()
@@ -343,6 +372,7 @@ class PageConfig(QWidget):
     # ================================================================ modifications
     def _signaler(self):
         if not self._chargement:
+            self.maj_version()
             self.modifie.emit()
 
     def _maj_systeme(self, cle, valeur):

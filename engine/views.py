@@ -54,7 +54,8 @@ def vue_page2(plan):
     st = plan['stations']
     N = []
     N.append({'chemin': [s['nom_projet']], 'type': 'formulaire', 'contenu': [
-        ('Nom du projet', s['nom_projet']), ('System Name', s['system_name']), ('Généré le', plan['genere_le']),
+        ('Nom du projet', s['nom_projet']), ('Version de configuration', plan['version_config']),
+        ('System Name', s['system_name']), ('Généré le', plan['genere_le']),
         ('Cycle de polling', f"{plan['T']} s ({len(plan['creneaux'])} créneaux de {CRENEAU_S} s)")]})
     N.append({'chemin': [s['nom_projet'], 'IP Address List'], 'type': 'tables', 'contenu': [{
         'titre': 'IP Address List', 'colonnes': ['Name', 'IP Address', 'Network Address', 'Subnet Mask'],
@@ -186,7 +187,7 @@ def donnees_pdf(plan):
     sections = []
     sections.append({'titre': '1. Synthèse du système', 'blocs': [
         {'type': 'formulaire', 'contenu': [
-            ('Projet', s['nom_projet']), ('System Name', s['system_name']), ('Propriétaire', s.get('proprietaire', '')),
+            ('Projet', s['nom_projet']), ('Version de configuration', plan['version_config']), ('System Name', s['system_name']), ('Propriétaire', s.get('proprietaire', '')),
             ('Contact', s.get('contact', '')), ('Localisation', s.get('localisation', '')),
             ('Description', s.get('description', '')), ('Nombre de radios', len(st)),
             ('Fréquence', '433,925 MHz'), ('Largeur de canal', '25 kHz (Bandwidth 2)'),

@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 9 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import.
+Résultat attendu : `Ran 12 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -42,3 +42,15 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] `dist\ELPRO Config\ELPRO Config.exe` démarre sur un PC Windows **sans Python installé**.
 - [ ] Les 4 exports fonctionnent depuis l'exécutable (gabarits et police trouvés).
 - [ ] Windows réglé en français : la date « CfgVersion » du `.cdb` reste au format `6-Oct-2026 8:00:42 AM`.
+
+## Version de configuration et feu à 4 sorties (moteur v1.5)
+
+- [ ] Ouvrir `examples/demo_site_A.json` : « Version de configuration : V1.0 ». Générer : V1.0 (première génération), fichiers proposés `Demo_Site_A_V1.0.cdb`, `Demo_Site_A_V1.0_Compte_rendu.pdf`, `Demo_Site_A_V1.0_Adresses.xlsx`, `IOPlus_A-BASE_V1.0_DESACTIVE.sconf`.
+- [ ] Changer l'IP d'une radio, générer : V1.1, barre d'état « V1.0 → V1.1 (modification mineure) », titre avec `*`.
+- [ ] Supprimer un périphérique, générer : V2.0 (majeure).
+- [ ] Générer à nouveau sans rien changer : reste V2.0 (aucune modification).
+- [ ] Enregistrer, fermer, rouvrir : la version affichée est V2.0 ; générer sans modification : V2.0.
+- [ ] Feu : la fenêtre propose Rouge, Orange clignotant, Orange fixe, Vert. Rouge seul → refusé ; rouge + orange fixe → accepté.
+- [ ] `demo_site_B`, radio B-F3 : registres 403 (rouge), 413 (orange clignotant), 423 (orange fixe), 433 (vert) ; autres signalisations à partir de 441.
+- [ ] Ouvrir un ancien projet (avec `do_orange`) : l'orange apparaît en « Orange clignotant », le titre affiche `*`, et l'enregistrement écrit `do_orange_cli`.
+

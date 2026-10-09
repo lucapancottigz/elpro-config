@@ -135,6 +135,7 @@ class TestExemples(unittest.TestCase):
         self.assertEqual(M.nom_fichier('Demo Site - A'), 'Demo_Site_A')
         self.assertEqual(M.nom_fichier('DEMO_B'), 'DEMO_B')
         self.assertEqual(M.nom_fichier(' -- '), 'projet')
+        self.assertEqual(M.nom_fichier('Site Évolène - Hérémence'), 'Site_Evolene_Heremence')   # accents retirés
 
     def test_cle(self):
         for _ in range(50):
@@ -148,6 +149,116 @@ class TestExemples(unittest.TestCase):
             self.assertEqual([r['nom'] for r in proj['radios']], [S['nom'] for S in plan['stations']])
             self.assertEqual([r['role'] for r in proj['radios']], [S['role'] for S in plan['stations']])
             self.assertEqual(proj['systeme']['cle_chiffrement'], plan['systeme']['cle_chiffrement'])
+
+
+class TestVersion(unittest.TestCase):
+    """Version de configuration : classement des modifications et noms des fichiers."""
+    def test_classement(self):
+        import copy
+        p = charger('demo_site_B')
+        def mod(f):
+            q = copy.deepcopy(p); f(q); return M.classer_modification(p, q)
+        self.assertIsNone(mod(lambda q: None))
+        # majeures
+        self.assertEqual(mod(lambda q: q['radios'].append(dict(q['radios'][1], nom='NOUVELLE', ip_octet=150))), 'majeure')
+        self.assertEqual(mod(lambda q: q['radios'].pop(3)), 'majeure')
+        self.assertEqual(mod(lambda q: q['radios'].insert(2, q['radios'].pop(4))), 'majeure')     # déplacement
+        self.assertEqual(mod(lambda q: q['radios'][1]['peripheriques'].pop()), 'majeure')
+        self.assertEqual(mod(lambda q: q['radios'][4]['peripheriques'].append({'type': 'SIRENE', 'nom': 'S', 'do': 8})), 'majeure')
+        self.assertEqual(mod(lambda q: q['radios'][2].update(mainv={'actif': True, 'di': 8})), 'majeure')
+        # mineures
+        self.assertEqual(mod(lambda q: q['radios'][2].update(ip_octet=180)), 'mineure')
+        self.assertEqual(mod(lambda q: q['radios'][2].update(puissance_dbm=30)), 'mineure')
+        self.assertEqual(mod(lambda q: q['radios'][2].update(nom='RENOMMEE')), 'mineure')
+        self.assertEqual(mod(lambda q: q['systeme'].update(description='autre')), 'mineure')
+        def pin(q):
+            per = next(x for x in q['radios'][1]['peripheriques'] if x.get('di'))
+            per['di'] = [8]
+        self.assertEqual(mod(pin), 'mineure')
+        self.assertEqual(mod(lambda q: q['radios'][0].update(mainv={'actif': True, 'di': 7})), 'mineure')   # autre entrée MAINV
+        # la version et l'historique ne comptent pas comme des modifications
+        self.assertIsNone(mod(lambda q: q.update(version_config='9.9', derniere_generation={})))
+
+    def test_increment(self):
+        self.assertEqual(M.prochaine_version('2.3', 'majeure'), '3.0')
+        self.assertEqual(M.prochaine_version('2.3', 'mineure'), '2.4')
+        self.assertEqual(M.prochaine_version('2.9', 'mineure'), '2.10')
+        self.assertEqual(M.prochaine_version('2.3', None), '2.3')
+        p = charger('demo_site_A')
+        p1, n1 = M.preparer_generation(p)                 # 1re génération : 1.0
+        self.assertEqual((M.version_config(p1), n1), ('1.0', None))
+        p2, n2 = M.preparer_generation(p1)                # sans modification : inchangée
+        self.assertEqual((M.version_config(p2), n2), ('1.0', None))
+        p2['radios'][2]['ip_octet'] = 190
+        p3, n3 = M.preparer_generation(p2)
+        self.assertEqual((M.version_config(p3), n3), ('1.1', 'mineure'))
+        p3['radios'][1]['peripheriques'].pop()
+        p4, n4 = M.preparer_generation(p3)
+        self.assertEqual((M.version_config(p4), n4), ('2.0', 'majeure'))
+        self.assertNotIn('version_config', p4['derniere_generation'])
+
+    def test_noms_fichiers(self):
+        p = charger('demo_site_B'); p['version_config'] = '3.2'
+        with tempfile.TemporaryDirectory() as d:
+            plan, f = M.generer_tout(p, d)
+            self.assertEqual(sorted(os.path.basename(x) for x in f),
+                             ['Demo_Site_B_V3.2.cdb', 'IOPlus_B-BASE_V3.2_DESACTIVE.sconf', 'IOPlus_B-SM3_V3.2_DESACTIVE.sconf'])
+        self.assertEqual(M.base_nom_fichier(plan), 'Demo_Site_B_V3.2')
+        p['version_config'] = '3'
+        self.assertTrue(any('Version de configuration' in e for e in M.valider(p)))
+
+
+
+class TestFeu(unittest.TestCase):
+    """Feu à 4 sorties : rouge, orange clignotant, orange fixe, vert."""
+    def test_registres_4_sorties(self):
+        plan = M.calculer_plan(charger('demo_site_B'))
+        F3 = next(S for S in plan['stations'] if S['nom'] == 'B-F3')
+        self.assertEqual([(c['adresse'], c['do']) for c in F3['commandes']],
+                         [(403, [1]), (413, [2]), (423, [3]), (433, [4])])
+        autres = sorted(r['adresse'] for r in plan['registres'] if r['type'] == 'Commande signalisation')
+        self.assertEqual(autres, list(range(441, 448)))                       # autres signalisations : 441-450
+        self.assertEqual(plan['stations'][0]['failsafe'][0], (401, 50))       # fail-safe 401-450
+
+    def test_ancien_format(self):
+        """Ancien fichier (do_orange) : lu comme orange clignotant, plan identique."""
+        p = charger('demo_site_A'); anc = json.loads(json.dumps(p))
+        for r in anc['radios']:
+            for x in r['peripheriques']:
+                if x['type'] == 'FEU':
+                    x['do_orange'] = x.pop('do_orange_cli'); x.pop('do_orange_fixe')
+        self.assertEqual(resume(M.calculer_plan(anc)), resume(M.calculer_plan(p)))
+        self.assertIsNone(M.classer_modification(anc, p))                     # pas une modification
+        q = M.normaliser_projet(anc)
+        f = next(x for r in q['radios'] for x in r['peripheriques'] if x['type'] == 'FEU')
+        self.assertNotIn('do_orange', f); self.assertEqual(f['do_orange_cli'], 2); self.assertIsNone(f['do_orange_fixe'])
+
+    def test_validation_feu(self):
+        def feu(**do):
+            p = charger('demo_site_A'); f = next(x for x in p['radios'][4]['peripheriques'] if x['type'] == 'FEU')
+            f.update(do_rouge=1, do_orange_cli=None, do_orange_fixe=None, do_vert=None); f.update(do)
+            return [e for e in M.valider(p) if 'feu' in e]
+        self.assertEqual(feu(do_orange_cli=2), [])
+        self.assertEqual(feu(do_orange_fixe=2), [])                            # orange fixe seul : accepté
+        self.assertEqual(feu(do_orange_cli=2, do_orange_fixe=4, do_vert=5), [])
+        self.assertTrue(feu())                                                 # aucun orange : refusé
+        self.assertTrue(feu(do_rouge=None, do_orange_cli=2))                   # pas de rouge : refusé
+
+    def test_base_tous_peripheriques(self):
+        """La base accepte tous les périphériques, radar compris (copie locale, sans IO Plus)."""
+        p = charger('demo_site_B')
+        p['radios'][0]['peripheriques'].append({'type': 'RADAR', 'nom': 'RADAR_B', 'ai': 1, 'seuil_haut_ma': 12.0})
+        self.assertEqual(M.valider(p), [])
+        plan = M.calculer_plan(p); B = plan['stations'][0]
+        dftl = next(m for m in B['scatters'] if m['nom'].endswith('-DFTL'))
+        self.assertIn((30001, 35201), dftl['paires'])
+        self.assertEqual(B['noms_io']['Ain1'], 'RADAR_B')
+        self.assertTrue(all(l[4] not in (501, 502) for l in B['iop']))          # pas de bloc radar IO Plus sur la base
+
+    def test_ajout_sortie_feu_mineure(self):
+        p = charger('demo_site_A'); q = json.loads(json.dumps(p))
+        next(x for x in q['radios'][4]['peripheriques'] if x['type'] == 'FEU')['do_vert'] = 6
+        self.assertEqual(M.classer_modification(p, q), 'mineure')
 
 
 if __name__ == '__main__':
