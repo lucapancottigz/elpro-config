@@ -6,7 +6,6 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Num
 
 ### Ajouté
 - Radar : échelle facultative (mesure à 4 mA, mesure à 20 mA, unité ; 0–1000 cm par défaut). Les seuils se saisissent dans l'unité et le tableau de bord affiche le radar en cm ; le registre garde la valeur brute 4–20 mA.
-
 - Remarques du moteur après génération : boîte « Configuration générée avec des remarques » (la génération reste valide).
 
 ### Modifié
