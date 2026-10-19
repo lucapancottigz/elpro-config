@@ -23,11 +23,11 @@ Document de reprise pour le nouveau programmeur. À lire en entier avant toute m
 
 | Rôle | Responsabilité |
 |---|---|
-| **Luca** (Geoazimut, propriétaire) | Exprime les besoins, teste sur Windows et sur les vraies radios, fusionne les PR, publie les releases. Il n'est pas à l'aise avec GitHub : il lui faut des **commandes PowerShell exactes, une par une**, avec le résultat attendu après chacune. |
-| **Ingénieur** (session Claude séparée) | Écrit et teste le **moteur de règles** (`engine/`), les tests du moteur et les spécifications. Il livre des **compléments** (zip : fichiers moteur, tests, `COMPLEMENT_Vx.md`) et rédige les procédures de test de Luca. |
+| **Propriétaire** (Geoazimut) | Exprime les besoins, teste sur Windows et sur les vraies radios, fusionne les PR, publie les releases. Les opérations GitHub (fusion, release) suivent une procédure écrite pas à pas : fournis toujours des commandes PowerShell exactes, une par une, avec le résultat attendu. |
+| **Ingénieur** (session Claude séparée) | Écrit et teste le **moteur de règles** (`engine/`), les tests du moteur et les spécifications. Il livre des **compléments** (zip : fichiers moteur, tests, `COMPLEMENT_Vx.md`) et rédige les procédures de test du propriétaire. |
 | **Programmeur** (toi) | Interface, intégration des compléments, documentation `docs/`, empaquetage (`build.bat`, installateur), **une PR par version**. Tu n'as accès qu'à ce dépôt. |
 
-Circuit d'une version : besoin de Luca → complément de l'ingénieur → ta PR sur une branche `claude/...` → tests de Luca sous Windows → fusion et release par Luca.
+Circuit d'une version : besoin du propriétaire → complément de l'ingénieur → ta PR sur une branche `claude/...` → tests du propriétaire sous Windows → fusion et release par le propriétaire.
 
 ---
 
@@ -95,7 +95,7 @@ Toute modification en page 1 efface le plan et grise les exports.
 **Topologie et communication**
 - **Topologie :** une base, la centrale d'alarme, et jusqu'à 17 radios, remotes et repeaters, en mode Fixed Links. Réseau local 192.168.1.0/24, base en `.100`.
 - **Polling :** la base interroge chaque remote dans des créneaux de **22 s**. Un cycle dure T = nombre de créneaux × 22 s.
-- **IO Plus de la base :** pour chaque remote, comflag = (toutes ses lectures ont échoué) OU (l'envoi des commandes a échoué). Le `.sconf` (tar.gz contenant `Logic.conf` et `Logic.version`) est **toujours livré désactivé** (`Enabled 0`) : Luca l'active à la main.
+- **IO Plus de la base :** pour chaque remote, comflag = (toutes ses lectures ont échoué) OU (l'envoi des commandes a échoué). Le `.sconf` (tar.gz contenant `Logic.conf` et `Logic.version`) est **toujours livré désactivé** (`Enabled 0`) : le propriétaire l'active à la main.
 - **Fail-safe :** commandes 401 × 50.
 
 **Plan de registres de la base**
@@ -141,14 +141,11 @@ Toute modification en page 1 efface le plan et grise les exports.
 
 ## 6. Construire, tester, publier
 
-**Environnement Windows de Luca**
-- Les dépôts sont dans `Documents\Git\` (et non `GitHub`).
-- Le lanceur `py` et `python` ne sont **pas** dans le PATH. Python 3.12 est installé dans `%LOCALAPPDATA%\Programs\Python\Python312\`.
-- `build.bat` suppose un `venv` existant. Quand c'est nécessaire, donne à Luca la commande complète : `& "<chemin>\python.exe" -m venv venv`, puis `.\venv\Scripts\python.exe -m pip install -r requirements.txt`.
-- `build.bat` enchaîne les tests du moteur, la recette automatique de l'interface, PyInstaller (`--onedir`), Inno Setup et `SHA256SUMS.txt`. Il produit dans `dist\` : `ELPRO_Config_Setup_<version>.exe`, `ELPRO_Config_Setup.exe` et `SHA256SUMS.txt`.
-- Le message Qt `This plugin does not support propagateSizeHints()`, émis pendant la recette hors écran, est **sans gravité**.
+Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppose pas l’existence de `py` et donne la commande complète de création du venv avec le chemin de `python.exe`. Le message Qt `propagateSizeHints()` pendant la recette est sans gravité.
 
-**Publication par Luca** : l'ingénieur lui fournit une procédure `Test_Vx.y.md` qui enchaîne :
+`build.bat` enchaîne les tests du moteur, la recette automatique de l'interface, PyInstaller (`--onedir`), Inno Setup et `SHA256SUMS.txt`. Il produit dans `dist\` : `ELPRO_Config_Setup_<version>.exe`, `ELPRO_Config_Setup.exe` et `SHA256SUMS.txt`.
+
+**Publication par le propriétaire** : l'ingénieur lui fournit une procédure `Test_Vx.y.md` qui enchaîne :
 1. `gh pr checkout N`, puis `.\build.bat` ;
 2. les tests sous Windows ;
 3. `gh pr merge N --merge`, puis `git checkout main`, `git pull` et un nouveau `.\build.bat` ;
@@ -179,7 +176,7 @@ Toute modification en page 1 efface le plan et grise les exports.
 
 ## 8. Chantiers ouverts
 
-1. **Générer directement le XML de chaque radio**, au lieu du `.cdb` pour CConfig. C'est en attente d'une radio de banc chez Luca. CConfig n'est pas fiable : il lui arrive d'annoncer « programmé » alors que la radio ne l'est pas. L'export XML d'une radio (racine `<group name="E2Config">`) contient toute sa configuration :
+1. **Générer directement le XML de chaque radio**, au lieu du `.cdb` pour CConfig. C'est en attente d'une radio de banc chez le propriétaire. CConfig n'est pas fiable : il lui arrive d'annoncer « programmé » alors que la radio ne l'est pas. L'export XML d'une radio (racine `<group name="E2Config">`) contient toute sa configuration :
    - réseau et identification ;
    - noms des E/S (`IOUsrCfg`) et mappings (`ELPROMesh`) ;
    - `FailSafe` et tableau de bord (`HMI`) ;
