@@ -17,3 +17,6 @@ build.log
 *.xlsx
 *.elpro.json
 verification.txt
+
+# Graphe de connaissances (graphify) : local seulement
+graphify-out/
