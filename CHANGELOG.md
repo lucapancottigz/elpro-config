@@ -2,6 +2,16 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.4.0] — 2026-10-19
+
+### Modifié
+- Version de configuration : une modification est désormais **majeure** dès qu'un registre existant de la base disparaît ou désigne un autre équipement (ex. entrée d'un câble déplacée sur une remote, ce qui décale les registres de détection 150nn ; deux câbles qui échangent leurs entrées). Renommer, changer une sortie ou ajouter une sortie à un feu restent des modifications mineures.
+
+### Corrigé
+- Un `\` dans un texte (description, propriétaire, clé de chiffrement…) faisait échouer l'export `.cdb` ou modifiait le texte écrit dans la radio. Le texte est maintenant écrit tel quel.
+- Au-delà de 100 registres de détection, les détections chevauchaient les comflags 151xx sans avertissement. « Générer » refuse désormais le projet avec un message (sur une remote, les entrées libres entre la première et la dernière entrée utilisée comptent aussi).
+- Le compte rendu PDF échouait quand un texte contenait `<…>` (ex. nom de projet `Site <A>`). Tout le texte est maintenant affiché tel quel.
+
 ## [1.3.0] — 2026-10-09
 
 ### Ajouté
@@ -53,6 +63,7 @@ Première version publique (retirée, remplacée par la 1.0.1).
 - Deux projets de démonstration fictifs (`demo_site_A`, `demo_site_B`).
 - Installateur Windows pour tous les utilisateurs, avec icône sur le bureau et raccourci dans le menu Démarrer (au choix).
 
+[1.4.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.4.0
 [1.3.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.3.0
 [1.2.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.2.0
 [1.1.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.1.0

@@ -23,7 +23,8 @@ La page 1 produit et relit **exactement** cette structure (`dict` Python, enregi
 | Radio ajoutée, supprimée ou déplacée dans la liste | majeure | 2.3 → **3.0** |
 | Périphérique ajouté, supprimé ou remplacé par un autre type | majeure | 2.3 → **3.0** |
 | Surveillance MAINV activée ou désactivée | majeure | 2.3 → **3.0** |
-| Tout autre changement : entrée/sortie d'un périphérique, entrée MAINV, IP, puissance, rôle, amont, renommage, inversion, textes, clé… | mineure | 2.3 → **2.4** |
+| Un registre existant de la base disparaît ou désigne un autre équipement (ex. entrée d'un câble déplacée sur une remote ; deux câbles qui échangent leurs entrées) | majeure | 2.3 → **3.0** |
+| Tout autre changement : sortie d'un périphérique, entrée qui ne décale aucun registre, sortie ajoutée à un feu, entrée MAINV, IP, puissance, rôle, amont, renommage, inversion, textes, clé… | mineure | 2.3 → **2.4** |
 | Aucun changement | — | 2.3 reste 2.3 |
 
 - Première génération d'un projet (pas de `derniere_generation`) : la version reste `version_config` (1.0 par défaut).

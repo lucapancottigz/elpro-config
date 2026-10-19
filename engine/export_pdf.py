@@ -12,6 +12,12 @@ BLEU = colors.HexColor('#1F4E78')
 MENTION = '© 2026 Geoazimut SàRL — geoazimut.com'   # identique à elpro_engine.COPYRIGHT / SITE_WEB
 
 
+
+def _e(v):
+    """Texte de l'utilisateur -> texte affichable par reportlab (« < », « > », « & » échappés)."""
+    from xml.sax.saxutils import escape
+    return escape(str(v))
+
 def ecrire_pdf(sections, chemin, titre_projet, sous_titre='Compte rendu de configuration radio ELPRO'):
     st = getSampleStyleSheet()
     p = ParagraphStyle('p', parent=st['BodyText'], fontSize=8, leading=10)
@@ -32,32 +38,32 @@ def ecrire_pdf(sections, chemin, titre_projet, sous_titre='Compte rendu de confi
     doc.addPageTemplates([PageTemplate(frames=[Frame(15 * mm, 14 * mm, larg, landscape(A4)[1] - 26 * mm)], onPage=entete)])
 
     def tableau(col, lignes):
-        data = [[Paragraph(f'<b>{c}</b>', ParagraphStyle('t', parent=p, textColor=colors.white)) for c in col]]
-        data += [[Paragraph(str(v), p) for v in l] for l in lignes]
+        data = [[Paragraph(f'<b>{_e(c)}</b>', ParagraphStyle('t', parent=p, textColor=colors.white)) for c in col]]
+        data += [[Paragraph(_e(v), p) for v in l] for l in lignes]
         t = Table(data, repeatRows=1, colWidths=[larg / len(col)] * len(col))
         t.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), BLEU), ('GRID', (0, 0), (-1, -1), 0.3, colors.lightgrey),
                                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F2F2F2')]),
                                ('VALIGN', (0, 0), (-1, -1), 'TOP')]))
         return t
 
-    E = [Spacer(1, 50 * mm), Paragraph(titre_projet, ParagraphStyle('c', parent=h1, fontSize=26)),
-         Paragraph(sous_titre, st['Heading2']), PageBreak()]
+    E = [Spacer(1, 50 * mm), Paragraph(_e(titre_projet), ParagraphStyle('c', parent=h1, fontSize=26)),
+         Paragraph(_e(sous_titre), st['Heading2']), PageBreak()]
     for sec in sections:
-        E.append(Paragraph(sec['titre'], h1))
+        E.append(Paragraph(_e(sec['titre']), h1))
         for b in sec['blocs']:
             if b['type'] == 'formulaire':
-                t = Table([[Paragraph(f'<b>{k}</b>', p), Paragraph(str(v), p)] for k, v in b['contenu']],
+                t = Table([[Paragraph(f'<b>{_e(k)}</b>', p), Paragraph(_e(v), p)] for k, v in b['contenu']],
                           colWidths=[60 * mm, larg - 60 * mm])
                 t.setStyle(TableStyle([('GRID', (0, 0), (-1, -1), 0.3, colors.lightgrey)]))
                 E += [t, Spacer(1, 4 * mm)]
             elif b['type'] == 'table':
-                if b.get('titre'): E.append(Paragraph(b['titre'], h2))
+                if b.get('titre'): E.append(Paragraph(_e(b['titre']), h2))
                 if b['lignes']: E += [tableau(b['colonnes'], b['lignes']), Spacer(1, 4 * mm)]
             elif b['type'] == 'sous_titre':
-                E.append(Paragraph(b['texte'], h3))
+                E.append(Paragraph(_e(b['texte']), h3))
             elif b['type'] == 'checklist':
                 for it in b['items']:
-                    E.append(KeepTogether(Paragraph(f'☐&nbsp;&nbsp;{it}', ParagraphStyle('ck', parent=p, fontSize=9, leading=14,
+                    E.append(KeepTogether(Paragraph(f'☐&nbsp;&nbsp;{_e(it)}', ParagraphStyle('ck', parent=p, fontSize=9, leading=14,
                                                                                           fontName='DejaVuSans' if _dejavu() else 'Helvetica'))))
         E.append(PageBreak())
     doc.build(E)

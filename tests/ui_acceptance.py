@@ -566,6 +566,84 @@ def main():
     F.importer_cdb()
     verifier(dernier('warning') and 'Projet protégé par mot de passe' in dernier('warning')[2], 'import protégé : message dédié')
 
+    print('Corrections de la relecture (moteur v1.9)')
+
+    def saisir(cle, texte):
+        p1.sys[cle].setText(texte); p1.sys[cle].textEdited.emit(texte)
+
+    def modifier_periph(ligne, k, cle, valeur):
+        """Ouvre le périphérique k de la radio `ligne`, choisit `valeur` dans le champ `cle`, valide."""
+        p1.tab_radios.selectRow(ligne)
+        dialogs.DialoguePeripherique.exec = lambda self: QDialog.Accepted
+
+        def init(self, *a, **kw):
+            orig_init(self, *a, **kw)
+            dialogs.choisir(self.champs[cle], valeur)
+        dialogs.DialoguePeripherique.__init__ = init
+        p1._modifier_periph(k)
+        dialogs.DialoguePeripherique.__init__ = orig_init
+        dialogs.DialoguePeripherique.exec = orig_exec
+
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))
+    saisir('description', 'Armoire A\\B'); saisir('proprietaire', 'C:\\new')
+    MESSAGES.clear()
+    F.generer()
+    REPONSES['fichier'] = os.path.join(tmp, 'antislash.cdb')
+    p2._export_cdb()
+    verifier(p2.plan is not None and not dernier('critical') and os.path.getsize(REPONSES['fichier']) > 0,
+             'textes avec « \\ » : export .cdb sans erreur')
+    REPONSES['question'] = QMessageBox.Discard
+    F.importer_cdb()
+    verifier(p1.projet['systeme']['description'] == 'Armoire A\\B' and p1.projet['systeme']['proprietaire'] == 'C:\\new',
+             'textes avec « \\ » : réimport, textes identiques')
+
+    with open(os.path.join(ex, 'demo_site_A.json'), encoding='utf-8') as f:
+        grand = json.load(f)
+    base = grand['radios'][0]
+    grand['radios'] = [base] + [{'nom': f'X-{i:02d}', 'role': 'remote', 'amont': base['nom'], 'ip_octet': 101 + i,
+                                 'mainv': {'actif': False},
+                                 'peripheriques': [{'type': 'CABLE', 'nom': 'CABLE', 'di': [1]},
+                                                   {'type': 'LIDAR6', 'nom': 'LIDAR', 'di': [2, 3, 4, 5, 6, 7]}]}
+                                for i in range(16)]
+    grand_ch = os.path.join(tmp, 'grand.elpro.json')
+    with open(grand_ch, 'w', encoding='utf-8') as f:
+        json.dump(grand, f, ensure_ascii=False, indent=2)
+    F.ouvrir_fichier(grand_ch)
+    MESSAGES.clear()
+    F.generer()
+    verifier(dernier('warning') and 'maximum 100' in dernier('warning')[2] and p2.plan is None,
+             '16 remotes câble + Lidar 6 (112 détections) : « Générer » refuse, « maximum 100 »')
+
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))
+    F.generer()                                       # V1.0
+    sm1 = next(i for i, r in enumerate(p1.projet['radios']) if r['nom'] == 'A-SM1')
+    k = next(i for i, x in enumerate(p1.projet['radios'][sm1]['peripheriques']) if x['type'] == 'CABLE')
+    modifier_periph(sm1, k, 'di0', 7)
+    verifier(p1.projet['radios'][sm1]['peripheriques'][k]['di'] == [7]
+             and p1.lb_version.text() == 'Modification majeure — prochaine génération : V2.0',
+             'câble d\'une remote déplacé de DI1 à DI7 : libellé majeure V2.0')
+    F.generer()
+    verifier(p1.projet['version_config'] == '2.0', 'câble déplacé : V2.0 (majeure)')
+    f1 = next(i for i, r in enumerate(p1.projet['radios']) if any(x['type'] == 'SIRENE' for x in r['peripheriques']))
+    radio = p1.projet['radios'][f1]
+    k = next(i for i, x in enumerate(radio['peripheriques']) if x['type'] == 'SIRENE')
+    occupees = {d for x in radio['peripheriques'] for d in M.sorties_du_periph(x) if d}
+    libre = max(set(range(1, 9)) - occupees)
+    modifier_periph(f1, k, 'do', libre)
+    verifier(radio['peripheriques'][k]['do'] == libre
+             and p1.lb_version.text() == 'Modification mineure — prochaine génération : V2.1',
+             f'sortie de la sirène changée (DO{libre}) : libellé mineure V2.1')
+    F.generer()
+    verifier(p1.projet['version_config'] == '2.1', 'sortie de la sirène changée : V2.1 (mineure)')
+
+    saisir('nom_projet', 'Site <A> & Co')
+    F.generer()
+    MESSAGES.clear()
+    REPONSES['fichier'] = os.path.join(tmp, 'balise.pdf')
+    p2._export_pdf()
+    verifier(not dernier('critical') and os.path.getsize(REPONSES['fichier']) > 1000,
+             'nom de projet « Site <A> & Co » : le PDF s\'exporte')
+
     print()
     print(f'{len(ECHECS)} échec(s)' if ECHECS else 'Recette interface : tout est OK')
     QSettings().clear()
