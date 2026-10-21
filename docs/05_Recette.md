@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 22 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar, tableau de bord de la base.
+Résultat attendu : `Ran 26 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -62,3 +62,10 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] Tableau de bord de la base : toutes les alarmes, une seule commande par genre (1 feu rouge, 1 orange clignotant…), tous les BATTV, MAINV, RSSI et comflags ; au plus 50 éléments.
 - [ ] `demo_site_B` (57 éléments) : les RSSI sont retirés du tableau de bord de la base et une boîte « Configuration générée avec des remarques » s'affiche.
 
+## Corrections de la relecture (moteur v1.9)
+
+- [ ] Description du système `Armoire A\B`, propriétaire `C:\new` : export `.cdb` sans erreur ; réimport : textes identiques.
+- [ ] 16 remotes avec chacune un câble (DI1) et un Lidar 6 (DI2–DI7) : « Générer » refuse avec le message « … maximum 100 … ».
+- [ ] Sur une remote, déplacer un câble de DI1 à une DI libre plus haute, générer : version **majeure** (X+1.0).
+- [ ] Changer la sortie d'une sirène (ex. DO3 → DO5), générer : version **mineure**.
+- [ ] Nom de projet `Site <A> & Co` : le PDF s'exporte et affiche le nom tel quel.

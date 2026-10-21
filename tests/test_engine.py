@@ -174,7 +174,11 @@ class TestVersion(unittest.TestCase):
         def pin(q):
             per = next(x for x in q['radios'][1]['peripheriques'] if x.get('di'))
             per['di'] = [8]
-        self.assertEqual(mod(pin), 'mineure')
+        self.assertEqual(mod(pin), 'majeure')        # v1.9 : entrée déplacée sur une remote -> les 150nn se décalent
+        def sortie(q):
+            per = next(x for x in q['radios'][3]['peripheriques'] if x['type'] == 'SIRENE')
+            per['do'] = 5
+        self.assertEqual(mod(sortie), 'mineure')       # sortie physique changée : aucun registre ne bouge
         self.assertEqual(mod(lambda q: q['radios'][0].update(mainv={'actif': True, 'di': 7})), 'mineure')   # autre entrée MAINV
         # la version et l'historique ne comptent pas comme des modifications
         self.assertIsNone(mod(lambda q: q.update(version_config='9.9', derniere_generation={})))
@@ -338,6 +342,73 @@ class TestFeu(unittest.TestCase):
         next(x for x in q['radios'][4]['peripheriques'] if x['type'] == 'FEU')['do_vert'] = 6
         self.assertEqual(M.classer_modification(p, q), 'mineure')
 
+
+
+class TestRelecture(unittest.TestCase):
+    """v1.9 : corrections issues de la relecture du code."""
+
+    def projet(self):
+        with open(os.path.join(EX, 'demo_site_A.json'), encoding='utf-8') as f:
+            return M.normaliser_projet(json.load(f))
+
+    def test_antislash_dans_les_textes(self):
+        p = self.projet()
+        p['systeme'].update(description='Armoire A\\B', proprietaire='C:\\new', cle_chiffrement='Abc\\1def23#x0123456789ab')
+        self.assertEqual(M.valider(p), [])
+        with tempfile.TemporaryDirectory() as d:
+            ch = os.path.join(d, 't.cdb')
+            M.ecrire_cdb(M.calculer_plan(p), ch)
+            relu, _ = M.importer_cdb(ch)
+        self.assertEqual(relu['systeme']['proprietaire'], 'C:\\new')
+        self.assertEqual(relu['systeme']['cle_chiffrement'], 'Abc\\1def23#x0123456789ab')
+        self.assertIn('Armoire A\\B', [r.get('description') for r in relu['radios']] + [relu['systeme'].get('description')])
+
+    def test_maximum_100_detections(self):
+        p = self.projet()
+        base = p['radios'][0]
+        base['peripheriques'] = [x for x in base['peripheriques'] if x['type'] not in M.TYPES_ENTREE]
+        rem = [dict(nom=f'X-{i:02d}', role='remote', amont=base['nom'], ip_octet=130 + i, mainv={'actif': False},
+                    peripheriques=[{'type': 'CABLE', 'nom': 'CABLE', 'di': [1]},
+                                   {'type': 'LIDAR6', 'nom': 'LIDAR', 'di': [2, 3, 4, 5, 6, 7]}]) for i in range(16)]
+        p['radios'] = [base] + rem                      # 16 x 7 = 112 détections
+        self.assertEqual(M.nombre_detections(p['radios']), 112)
+        self.assertTrue(any('maximum 100' in e for e in M.valider(p)))
+        p['radios'] = [base] + rem[:14]                 # 98 détections
+        self.assertFalse(any('maximum 100' in e for e in M.valider(p)))
+        # cohérence avec calculer_plan
+        q = self.projet()
+        pl = M.calculer_plan(q)
+        self.assertEqual(M.nombre_detections(q['radios']),
+                         sum(1 for r in pl['registres'] if 15001 <= r['adresse'] <= 15100))
+
+    def test_entree_deplacee_sur_remote_majeure(self):
+        a = self.projet()
+        b = json.loads(json.dumps(a))
+        [r for r in b['radios'] if r['nom'] == 'A-SM1'][0]['peripheriques'][0]['di'] = [7]   # CABLE1 : DI1 -> DI7
+        self.assertEqual(M.classer_modification(a, b), 'majeure')
+        c = json.loads(json.dumps(a))
+        c['systeme']['description'] = 'Autre texte'
+        self.assertEqual(M.classer_modification(a, c), 'mineure')
+        e = json.loads(json.dumps(a))                   # deux câbles d'une remote échangent leurs entrées
+        sm = [r for r in e['radios'] if r['nom'] == 'A-SM1'][0]
+        sm['peripheriques'][0]['di'], sm['peripheriques'][1]['di'] = [2], [1]
+        self.assertEqual(M.classer_modification(a, e), 'majeure')       # 15001 désigne un autre câble
+        f = json.loads(json.dumps(a))                   # renommer un périphérique : mineure
+        [r for r in f['radios'] if r['nom'] == 'A-SM1'][0]['peripheriques'][0]['nom'] = 'CABLE_X'
+        self.assertEqual(M.classer_modification(a, f), 'mineure')
+        d = json.loads(json.dumps(a))
+        d['radios'][2]['nom'] = 'RENOMMEE'
+        self.assertEqual(M.classer_modification(a, d), 'mineure')       # renommer ne décale rien
+
+    def test_pdf_nom_avec_balise(self):
+        import views as V, export_pdf as PDF
+        p = self.projet()
+        p['systeme']['nom_projet'] = 'Site <A> & Co'
+        pl = M.calculer_plan(p)
+        with tempfile.TemporaryDirectory() as d:
+            ch = os.path.join(d, 't.pdf')
+            PDF.ecrire_pdf(V.donnees_pdf(pl), ch, pl['systeme']['nom_projet'])
+            self.assertGreater(os.path.getsize(ch), 1000)
 
 if __name__ == '__main__':
     unittest.main()

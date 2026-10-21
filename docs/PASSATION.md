@@ -11,7 +11,7 @@ Document de reprise pour le nouveau programmeur. À lire en entier avant toute m
 | Élément | Valeur |
 |---|---|
 | Dépôt | `lucapancottigz/elpro-config` (**public**) |
-| Dernière version publiée | **1.3.0** (moteur de règles v1.8) |
+| Dernière version publiée | **1.4.0** (moteur de règles v1.9) |
 | Langage / interface | Python 3.11+ / PySide6 |
 | Distribution | Installateur Inno Setup publié dans les Releases GitHub |
 | Licence | Propriétaire : « © 2026 Geoazimut SàRL. Tous droits réservés. », geoazimut.com (fichier `LICENSE`) |
@@ -38,7 +38,7 @@ Circuit d'une version : besoin du propriétaire → complément de l'ingénieur 
 3. **Aucune donnée réelle dans le dépôt**, qui est public : ni nom de client ou de site, ni clé de chiffrement, ni plan IP réel, ni `.elpro.json` ou `.cdb` de site. Seuls les exemples fictifs (`demo_site_A`, `demo_site_B`) y figurent.
 4. **Noms de fichiers et dossiers de code en anglais** ; **commentaires, docstrings, documentation et interface en français**.
 5. **Les fichiers produits pour l'utilisateur gardent des noms français** : `_Compte_rendu.pdf`, `_Adresses.xlsx`, `IOPlus_<radio>_V<x.y>_DESACTIVE.sconf`, `.elpro.json`. Les accents sont retirés des noms de fichiers.
-6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 22 tests … OK`**. `build.bat` le vérifie aussi.
+6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 26 tests … OK`**. `build.bat` le vérifie aussi.
 7. Installateur : ne change ni l'**`AppId`** ni **`AppPublisher` = `GeoAzimut`**, sinon une mise à jour s'installe à côté de l'ancienne version au lieu de la remplacer.
 8. Mentions de copyright présentes partout : fenêtre « À propos », barre d'état, propriétés de l'exécutable, installateur (page de licence), PDF et Excel.
 
@@ -56,7 +56,7 @@ elpro-config/
 │  ├─ export_excel.py, export_pdf.py   ← mise en forme seulement
 ├─ resources/             ← gabarits XML validés dans CConfig, police du PDF, icône
 ├─ examples/              ← demo_site_A/B.json + expected_*.json
-├─ tests/                 ← tests du moteur (22)
+├─ tests/                 ← tests du moteur (26)
 ├─ installer/             ← elpro_config.iss (Inno Setup, UTF-8 avec BOM) + génération de la ressource de version
 └─ docs/                  ← 00_LISEZMOI … 05_Recette (dossier de réalisation)
 ```
@@ -169,6 +169,7 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 | 1.1.0 | Version de configuration (majeure/mineure) dans les noms de fichiers, feu à 4 sorties, accents retirés des noms de fichiers, tout périphérique accepté sur la base |
 | 1.2.0 | Registres d'échec retirés de la liste des registres, renumérotation des commandes (vert en 441–450) |
 | 1.3.0 | Noms de 16 caractères au maximum, radar en unité physique (cm), tableau de bord de la base limité à 50 éléments |
+| 1.4.0 | Corrections de la relecture : `\` accepté dans les textes, maximum 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans les textes |
 
 `CHANGELOG.md` fait foi.
 
@@ -196,6 +197,6 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 ## 9. Pour démarrer
 
 1. Clone le dépôt et lis `docs/00_LISEZMOI.md` à `docs/05_Recette.md`, puis `CHANGELOG.md`.
-2. Crée le venv et lance les tests : `Ran 22 tests … OK`.
+2. Crée le venv et lance les tests : `Ran 26 tests … OK`.
 3. Lance l'application et ouvre `examples/demo_site_B.json`, puis Générer : la page 2 se remplit.
 4. Attends le prochain complément de l'ingénieur. Ne prends pas d'initiative sur les règles radio.
