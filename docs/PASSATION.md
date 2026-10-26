@@ -11,7 +11,7 @@ Document de reprise pour le nouveau programmeur. À lire en entier avant toute m
 | Élément | Valeur |
 |---|---|
 | Dépôt | `lucapancottigz/elpro-config` (**public**) |
-| Dernière version publiée | **1.4.0** (moteur de règles v1.9) |
+| Dernière version publiée | **1.5.0** (moteur de règles v2.0) |
 | Langage / interface | Python 3.11+ / PySide6 |
 | Distribution | Installateur Inno Setup publié dans les Releases GitHub |
 | Licence | Propriétaire : « © 2026 Geoazimut SàRL. Tous droits réservés. », geoazimut.com (fichier `LICENSE`) |
@@ -38,7 +38,7 @@ Circuit d'une version : besoin du propriétaire → complément de l'ingénieur 
 3. **Aucune donnée réelle dans le dépôt**, qui est public : ni nom de client ou de site, ni clé de chiffrement, ni plan IP réel, ni `.elpro.json` ou `.cdb` de site. Seuls les exemples fictifs (`demo_site_A`, `demo_site_B`) y figurent.
 4. **Noms de fichiers et dossiers de code en anglais** ; **commentaires, docstrings, documentation et interface en français**.
 5. **Les fichiers produits pour l'utilisateur gardent des noms français** : `_Compte_rendu.pdf`, `_Adresses.xlsx`, `IOPlus_<radio>_V<x.y>_DESACTIVE.sconf`, `.elpro.json`. Les accents sont retirés des noms de fichiers.
-6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 26 tests … OK`**. `build.bat` le vérifie aussi.
+6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 30 tests … OK`**. `build.bat` le vérifie aussi.
 7. Installateur : ne change ni l'**`AppId`** ni **`AppPublisher` = `GeoAzimut`**, sinon une mise à jour s'installe à côté de l'ancienne version au lieu de la remplacer.
 8. Mentions de copyright présentes partout : fenêtre « À propos », barre d'état, propriétés de l'exécutable, installateur (page de licence), PDF et Excel.
 
@@ -56,7 +56,7 @@ elpro-config/
 │  ├─ export_excel.py, export_pdf.py   ← mise en forme seulement
 ├─ resources/             ← gabarits XML validés dans CConfig, police du PDF, icône
 ├─ examples/              ← demo_site_A/B.json + expected_*.json
-├─ tests/                 ← tests du moteur (26)
+├─ tests/                 ← tests du moteur (30)
 ├─ installer/             ← elpro_config.iss (Inno Setup, UTF-8 avec BOM) + génération de la ressource de version
 └─ docs/                  ← 00_LISEZMOI … 05_Recette (dossier de réalisation)
 ```
@@ -101,11 +101,13 @@ Toute modification en page 1 efface le plan et grise les exports.
 **Plan de registres de la base**
 - Détections : 150nn.
 - Comflags : 151xx, où xx est le numéro de la radio (01 = base).
-- Échecs : 152xx (BATTV), 153xx (RSSI), 154xx (détections), 155xx (commandes), 156xx (MAINV), 157xx (radar). Ces registres sont utilisés par les mappings et l'IO Plus, mais **ne figurent pas dans la liste des registres** affichée.
+- Échecs : 152xx (BATTV), 153xx (RSSI), 154xx (détections), 155xx (commandes), 156xx (MAINV), 157xx (radar), 158xx (entrées analogiques). Ces registres sont utilisés par les mappings et l'IO Plus, mais **ne figurent pas dans la liste des registres** affichée.
 - MAINV (secteur) : 105xx.
 - Tension batterie : 305xx, avec 8192 = 0 V et 49152 = 40 V.
 - RSSI : 351xx, avec la valeur 0..150 = 0..−150 dBm.
 - Radars : 352nn, valeur brute de 16384 (4 mA) à 49152 (20 mA).
+- Entrées analogiques génériques : 353nn (35301–35350), valeur brute 16384–49152 en courant (4–20 mA), 8192–49152 en tension (0–5 V). Échec de lecture : 158xx (non listé, comme les autres registres d'échec).
+- Consignes de sortie analogique : 450nn (45001–45020), écrites par la supervision et recopiées vers l'AO de la radio (16384 = 4 mA, 49152 = 20 mA).
 - Commandes :
 
 | Registres | Commande |
@@ -119,6 +121,7 @@ Toute modification en page 1 efface le plan et grise les exports.
 **Périphériques**
 - **Feu :** 4 sorties, avec les clés JSON `do_rouge` (obligatoire), `do_orange_cli` et `do_orange_fixe` (au moins un orange), `do_vert`. L'ancien `do_orange` est converti en `do_orange_cli` par `normaliser_projet`.
 - **Radar :** échelle facultative `mesure_4ma`, `mesure_20ma` et `unite` (cm par défaut). Les seuils sont stockés en mA.
+- **Entrée analogique** (`ENTREE_ANA`, mesure seule, sans alarme) : AI1–AI4 en courant, AI3–AI4 en tension, échelle facultative `mesure_bas`, `mesure_haut`, `unite`. Une AI sert soit à un radar, soit à une entrée analogique. **Sortie analogique** (`SORTIE_ANA`) : AO1–AO2, 4-20 mA, même échelle facultative.
 - **Base :** elle accepte n'importe quel périphérique. Un radar sur la base est copié en local (30000 + AI) vers 352nn.
 
 **Noms et tableau de bord**
@@ -170,6 +173,7 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 | 1.2.0 | Registres d'échec retirés de la liste des registres, renumérotation des commandes (vert en 441–450) |
 | 1.3.0 | Noms de 16 caractères au maximum, radar en unité physique (cm), tableau de bord de la base limité à 50 éléments |
 | 1.4.0 | Corrections de la relecture : `\` accepté dans les textes, maximum 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans les textes |
+| 1.5.0 | Entrée analogique (mesure, courant ou tension) et sortie analogique 4-20 mA génériques |
 
 `CHANGELOG.md` fait foi.
 
@@ -197,6 +201,6 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 ## 9. Pour démarrer
 
 1. Clone le dépôt et lis `docs/00_LISEZMOI.md` à `docs/05_Recette.md`, puis `CHANGELOG.md`.
-2. Crée le venv et lance les tests : `Ran 26 tests … OK`.
+2. Crée le venv et lance les tests : `Ran 30 tests … OK`.
 3. Lance l'application et ouvre `examples/demo_site_B.json`, puis Générer : la page 2 se remplit.
 4. Attends le prochain complément de l'ingénieur. Ne prends pas d'initiative sur les règles radio.

@@ -348,7 +348,7 @@ class PageConfig(QWidget):
 
     def _remplir_mainv(self, r):
         mv = r.get('mainv') or {}
-        di, _do, _ai = occupations(r, sauf='MAINV')
+        di, _do, _ai, _ao = occupations(r, sauf='MAINV')
         remplir_combo(self.cb_mainv, 'DI', list(range(1, 9)), di)
         choisir(self.cb_mainv, mv.get('di', 8))
         self.ck_mainv.setChecked(bool(mv.get('actif')))

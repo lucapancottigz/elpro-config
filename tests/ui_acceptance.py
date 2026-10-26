@@ -644,6 +644,114 @@ def main():
     verifier(not dernier('critical') and os.path.getsize(REPONSES['fichier']) > 1000,
              'nom de projet « Site <A> & Co » : le PDF s\'exporte')
 
+    print('Entrée et sortie analogiques (moteur v2.0)')
+
+    def ajouter_periph(ligne, regler):
+        """Ajoute un périphérique à la radio `ligne` : `regler(d)` remplit la boîte, puis OK."""
+        p1.tab_radios.selectRow(ligne)
+        vus = []
+        dialogs.DialoguePeripherique.exec = lambda self: QDialog.Accepted
+
+        def init(self, *a, **kw):
+            orig_init(self, *a, **kw)
+            regler(self); vus.append(self)
+        dialogs.DialoguePeripherique.__init__ = init
+        p1._ajouter_periph()
+        dialogs.DialoguePeripherique.__init__ = orig_init
+        dialogs.DialoguePeripherique.exec = orig_exec
+        return vus[0], p1.radio_courante()['peripheriques'][-1]
+
+    def actives(cb):
+        return [cb.itemData(i) for i in range(cb.count()) if cb.model().item(i).isEnabled()]
+
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))
+    F.generer()                                       # V1.0
+    sm1 = next(i for i, r in enumerate(p1.projet['radios']) if r['nom'] == 'A-SM1')
+
+    def ana_courant(d):
+        dialogs.choisir(d.cb_type, 'ENTREE_ANA'); dialogs.choisir(d.champs['ai'], 2)
+        d.champs['echelle'].setChecked(True)
+        d.champs['mesure_bas'].setValue(0); d.champs['mesure_haut'].setValue(10); d.champs['unite'].setText('bar')
+    d, ana = ajouter_periph(sm1, ana_courant)
+    verifier(ana == {'type': 'ENTREE_ANA', 'nom': 'AI2', 'ai': 2, 'mode': 'courant', 'mesure_bas': 0, 'mesure_haut': 10,
+                     'unite': 'bar'}, 'entrée analogique : AI2, courant, échelle 0–10 bar, nom proposé AI2')
+    verifier(d.form.labelForField(d.champs['mesure_bas']).text() == 'Valeur à 4 mA'
+             and not any(k.startswith('seuil') for k in d.champs), 'entrée analogique en courant : « Valeur à 4 mA », aucun seuil')
+    verifier(p1.tab_periph.item(len(p1.radio_courante()['peripheriques']) - 1, 2).text() == 'AI2 — 0-20 mA',
+             'entrée analogique : câblage « AI2 — 0-20 mA »')
+
+    def ao1(d):
+        dialogs.choisir(d.cb_type, 'SORTIE_ANA'); dialogs.choisir(d.champs['ao'], 1)
+    d, ao = ajouter_periph(sm1, ao1)
+    verifier(ao == {'type': 'SORTIE_ANA', 'nom': 'AO1', 'ao': 1} and not d.champs['echelle'].isChecked(),
+             'sortie analogique : AO1, échelle décochée, nom proposé AO1, pas de clés d\'échelle')
+    verifier(p1.tab_periph.item(len(p1.radio_courante()['peripheriques']) - 1, 2).text() == 'AO1',
+             'sortie analogique : câblage « AO1 »')
+
+    def ana_tension(d):
+        dialogs.choisir(d.cb_type, 'ENTREE_ANA'); dialogs.choisir(d.champs['mode'], 'tension')
+        dialogs.choisir(d.champs['ai'], 4)
+        d.champs['echelle'].setChecked(True)
+        d.champs['mesure_bas'].setValue(0); d.champs['mesure_haut'].setValue(48); d.champs['unite'].setText('V')
+    d, ana_b = ajouter_periph(0, ana_tension)
+    verifier([d.champs['ai'].itemData(i) for i in range(d.champs['ai'].count())] == [3, 4]
+             and d.form.labelForField(d.champs['mesure_haut']).text() == 'Valeur à 5 V'
+             and ana_b['mode'] == 'tension' and ana_b['ai'] == 4,
+             'base : entrée analogique en tension, seules AI3 et AI4 proposées, « Valeur à 5 V »')
+    verifier(p1.lb_version.text() == 'Modification majeure — prochaine génération : V2.0',
+             'entrée/sortie analogique ajoutée : libellé majeure V2.0')
+    MESSAGES.clear()
+    F.generer()
+    reg = {r['adresse']: r for r in p2.plan['registres']} if p2.plan else {}
+    verifier(not dernier('warning') and p1.projet['version_config'] == '2.0', 'génération acceptée : V2.0 (majeure)')
+    a_sm1 = next((r for r in reg.values() if r['station'] == 'A-SM1' and r['type'] == 'Mesure analogique'), None)
+    a_base = next((r for r in reg.values() if r['station'] == 'A-BASE' and r['type'] == 'Mesure analogique'), None)
+    verifier(a_sm1 and 35301 <= a_sm1['adresse'] <= 35350 and '16384 = 0 bar, 49152 = 10 bar' in a_sm1['description'],
+             'A-SM1 : registre 353nn « Mesure analogique », 16384 = 0 bar, 49152 = 10 bar')
+    verifier(a_base and 35301 <= a_base['adresse'] <= 35350, 'A-BASE : registre 353nn pour l\'entrée en tension')
+    verifier(reg.get(45001, {}).get('type') == 'Consigne sortie analogique', 'A-SM1 : registre 45001 « Consigne sortie analogique »')
+    B = p2.plan['stations'][0]
+    verifier(dict(B['groupes']).get('Mesures') == 2 and any(t['registre'] == a_sm1['adresse'] and t['unites'] == 'bar'
+                                                            for t in B['tags']),
+             'tableau de bord de la base : groupe Mesures, A-SM1 en bar')
+    import views
+    cab = [l for o in views.donnees_excel(p2.plan) for l in o['lignes'] if len(l) > 1 and l[0] == 'A-SM1' and l[1] == 'AO1']
+    ck = [i for s in views.donnees_pdf(p2.plan) if s['titre'].startswith('4.') for b in s['blocs'] for i in b['items']]
+    verifier(cab and any('16384 puis 49152 dans 45001' in i for i in ck), 'câblage : ligne AO1 ; checklist : 16384 puis 49152 dans 45001')
+
+    k = len(p1.projet['radios'][sm1]['peripheriques']) - 2           # l'entrée analogique AI2 de A-SM1
+    p1.tab_radios.selectRow(sm1)
+    dialogs.DialoguePeripherique.exec = lambda self: QDialog.Accepted
+
+    def init_echelle(self, *a, **kw):
+        orig_init(self, *a, **kw)
+        self.champs['mesure_haut'].setValue(16)
+    dialogs.DialoguePeripherique.__init__ = init_echelle
+    p1._modifier_periph(k)
+    dialogs.DialoguePeripherique.__init__ = orig_init
+    dialogs.DialoguePeripherique.exec = orig_exec
+    verifier(p1.projet['radios'][sm1]['peripheriques'][k]['mesure_haut'] == 16
+             and p1.lb_version.text() == 'Modification mineure — prochaine génération : V2.1',
+             'échelle seule changée (0–16 bar) : libellé mineure V2.1')
+
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
+    sm3 = next(i for i, r in enumerate(p1.projet['radios']) if r['nom'] == 'B-SM3')
+    radar_ai = next(x['ai'] for x in p1.projet['radios'][sm3]['peripheriques'] if x['type'] == 'RADAR')
+    p1.tab_radios.selectRow(sm3)
+    d = dialogs.DialoguePeripherique(p1, p1.projet, p1.radio_courante())
+    dialogs.choisir(d.cb_type, 'ENTREE_ANA')
+    verifier(radar_ai not in actives(d.champs['ai']) and 'RADAR' in d.champs['ai'].itemText(radar_ai - 1),
+             f'AI{radar_ai} prise par le radar : grisée pour l\'entrée analogique, avec le nom du radar')
+    d, _x = ajouter_periph(sm3, lambda d: dialogs.choisir(d.cb_type, 'ENTREE_ANA'))
+    pris = p1.radio_courante()['peripheriques'][-1]['ai']
+    d = dialogs.DialoguePeripherique(p1, p1.projet, p1.radio_courante())
+    dialogs.choisir(d.cb_type, 'RADAR')
+    verifier(pris not in actives(d.champs['ai']), f'AI{pris} prise par l\'entrée analogique : grisée pour un radar')
+    d, _x = ajouter_periph(sm3, lambda d: dialogs.choisir(d.cb_type, 'SORTIE_ANA'))
+    d = dialogs.DialoguePeripherique(p1, p1.projet, p1.radio_courante())
+    dialogs.choisir(d.cb_type, 'SORTIE_ANA')
+    verifier(actives(d.champs['ao']) == [2] and d.ed_nom.text() == 'AO2', 'AO1 déjà prise : grisée, AO2 proposée')
+
     print()
     print(f'{len(ECHECS)} échec(s)' if ECHECS else 'Recette interface : tout est OK')
     QSettings().clear()

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
-Moteur de génération ELPRO GeoAzimut (v1.9) — IMPLÉMENTATION DE RÉFÉRENCE.
+Moteur de génération ELPRO GeoAzimut (v2.0) — IMPLÉMENTATION DE RÉFÉRENCE.
 
 Entrée  : un projet (dict, format décrit dans 03_Modele_de_donnees.md).
 Sorties : - plan (dict)            -> utilisé par la page 2, le PDF et l'Excel
@@ -37,7 +37,38 @@ OP = {'NO_OP': 0, 'LOAD': 1, 'STOR': 2, 'SET': 3, 'RES': 4, 'AND': 5, 'OR': 6, '
 
 TYPES_ENTREE = {'CABLE': 1, 'LIDAR3': 3, 'LIDAR6': 6, 'ALARME_BT': 1, 'ENTREE': 1}
 TYPES_SORTIE_SIMPLE = ('SIRENE', 'FLASH', 'SIRENE_FLASH', 'CAMERA', 'SPOT', 'SORTIE')
-TYPES = set(TYPES_ENTREE) | set(TYPES_SORTIE_SIMPLE) | {'FEU', 'CAMERA_SPOT', 'RADAR'}
+TYPES = set(TYPES_ENTREE) | set(TYPES_SORTIE_SIMPLE) | {'FEU', 'CAMERA_SPOT', 'RADAR', 'ENTREE_ANA', 'SORTIE_ANA'}
+
+# ---- E/S analogiques génériques (v2.0) : mesure seule (pas d'alarme radio) et consigne de sortie analogique
+# Entrée : AI1-AI4 en courant (0-20 mA, registres 30001-30004) ; AI3/AI4 en tension (0-5 V, registres 30009-30010).
+#          Brut : courant 8192 + mA x 2048 (4 mA = 16384, 20 mA = 49152) ; tension 8192 + V x 8192 (0 V = 8192, 5 V = 49152).
+# Sortie : AO1/AO2 (registres 40001-40002), 4-20 mA : 16384 = 4 mA, 49152 = 20 mA.
+ANA_BASE = 35300             # mesures analogiques sur la base : 353nn
+AO_BASE = 45000              # consignes de sortie analogique sur la base : 450nn (écrites par la supervision)
+MAX_ANA, MAX_AO = 50, 20
+ANA_POINTS = {'courant': (16384, 49152, 4, 20, 'mA'), 'tension': (8192, 49152, 0, 5, 'V')}
+AO_POINTS = (16384, 49152, 4, 20, 'mA')
+
+
+def registre_ai(p):
+    """Registre radio d'une entrée analogique générique."""
+    return 30000 + p['ai'] if p.get('mode', 'courant') == 'courant' else 30006 + p['ai']
+
+
+def _series(ana):
+    """Regroupe les entrées analogiques d'une radio en séries de registres consécutifs (une lecture par série)."""
+    runs = []
+    for A in ana:
+        if runs and A['distant'] == runs[-1][-1]['distant'] + 1:
+            runs[-1].append(A)
+        else:
+            runs.append([A])
+    return runs
+
+
+def io_ai(p):
+    """Identifiant CConfig de l'entrée (page IO) : Ain1-4 en courant, Ain5/Ain6 = AI3/AI4 en tension."""
+    return f"Ain{p['ai']}" if p.get('mode', 'courant') == 'courant' else f"Ain{p['ai'] + 2}"
 
 # Sorties d'un feu : (clé JSON, libellé, base du registre de commande)
 # Plan des commandes : rouge 401-410, orange clignotant 411-420, orange fixe 421-430,
@@ -233,6 +264,10 @@ def _carte_registres(projet):
             carte[d['adresse']] = ('DET', S['index'], ident(d['label']) if d['label'] else ('LIBRE', d['di']))
         for c in S['commandes']:
             carte[c['adresse']] = ('CMD', S['index'], ident(c['label']))
+        for X in S['ana']:
+            carte[X['adresse']] = ('ANA', S['index'], ident(X['label']))
+        for X in S['consignes']:
+            carte[X['adresse']] = ('AO', S['index'], ident(X['label']))
     rang = {S['nom']: S['index'] for S in pl['stations']}
     for r in pl['registres']:
         carte.setdefault(r['adresse'], (r['type'], rang.get(r['station'])))
@@ -322,7 +357,7 @@ def valider(projet):
         if pw is not None and not (10 <= int(pw) <= 40):
             E.append(f'{n} : puissance entre 10 et 40 dBm.')
         # E/S
-        di_used, do_used, ai_used, noms_p = {}, {}, {}, set()
+        di_used, do_used, ai_used, ao_used, noms_p = {}, {}, {}, {}, set()
         mv = r.get('mainv', {})
         if mv.get('actif'):
             di = mv.get('di', 8)
@@ -366,6 +401,21 @@ def valider(projet):
                     u = p.get('unite', 'cm')
                     if not (1 <= len(u) <= 8) or set(u) & CARS_INTERDITS:
                         E.append(f'{n}/{pn} : unité de 1 à 8 caractères, sans espace ni < > & " \'.')
+            elif t == 'ENTREE_ANA':
+                a, mode = p.get('ai'), p.get('mode', 'courant')
+                if mode not in ('courant', 'tension'):
+                    E.append(f'{n}/{pn} : mode « courant » (0-20 mA) ou « tension » (0-5 V).')
+                elif a not in (1, 2, 3, 4) or (mode == 'tension' and a not in (3, 4)):
+                    E.append(f'{n}/{pn} : AI1 à AI4 en courant, AI3 ou AI4 en tension.')
+                elif a in ai_used: E.append(f'{n}/{pn} : AI{a} déjà utilisée par {ai_used[a]}.')
+                else: ai_used[a] = pn
+                E += _valider_echelle(n, pn, p)
+            elif t == 'SORTIE_ANA':
+                o = p.get('ao')
+                if o not in (1, 2): E.append(f'{n}/{pn} : AO1 ou AO2 uniquement.')
+                elif o in ao_used: E.append(f'{n}/{pn} : AO{o} déjà utilisée par {ao_used[o]}.')
+                else: ao_used[o] = pn
+                E += _valider_echelle(n, pn, p)
             else:
                 dos = sorties_du_periph(p)
                 for d in dos:
@@ -396,6 +446,10 @@ def valider(projet):
                     if p.get('type') in TYPES_SORTIE_SIMPLE or p.get('type') == 'CAMERA_SPOT')
     if nb_feux > 10: E.append(f'{nb_feux} feux : maximum 10 (registres 401–430 et 441–450).')
     if nb_autres > 10: E.append(f'{nb_autres} signalisations autres : maximum 10 (registres 431–440).')
+    nb_ana = sum(1 for r in radios for p in r.get('peripheriques', []) if p.get('type') == 'ENTREE_ANA')
+    nb_ao = sum(1 for r in radios for p in r.get('peripheriques', []) if p.get('type') == 'SORTIE_ANA')
+    if nb_ana > MAX_ANA: E.append(f'{nb_ana} entrées analogiques : maximum {MAX_ANA} (registres 35301–35350).')
+    if nb_ao > MAX_AO: E.append(f'{nb_ao} sorties analogiques : maximum {MAX_AO} (registres 45001–45020).')
     nb_det = nombre_detections(radios)
     if nb_det > MAX_DETECTIONS:
         E.append(f'{nb_det} registres de détection nécessaires : maximum {MAX_DETECTIONS} (registres 15001–15100 ; '
@@ -405,6 +459,21 @@ def valider(projet):
 
 
 MAX_DETECTIONS = 100         # 15001-15100 ; 15101+ = comflags
+
+
+def _valider_echelle(n, pn, p):
+    """Échelle facultative d'une E/S analogique générique : mesure_bas / mesure_haut / unite."""
+    E = []
+    b, h = p.get('mesure_bas'), p.get('mesure_haut')
+    if (b is None) != (h is None):
+        E.append(f'{n}/{pn} : échelle incomplète (valeur basse et valeur haute).')
+    elif b is not None:
+        if not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in (b, h)) or b == h:
+            E.append(f'{n}/{pn} : valeurs basse et haute différentes et numériques.')
+        u = p.get('unite', '')
+        if not (1 <= len(u) <= 8) or set(u) & CARS_INTERDITS:
+            E.append(f'{n}/{pn} : unité de 1 à 8 caractères, sans espace ni < > & " \'.')
+    return E
 
 
 def nombre_detections(radios):
@@ -455,7 +524,7 @@ def calculer_plan(projet):
             'reads': [], 'scatters': [], 'writes': [], 'failsafe': [], 'sensibilite': None,
             'noms_registres': [], 'noms_io': {}, 'debounce': {},
             'tags': [], 'groupes': [], 'iop': None, 'ack': ACK_DEFAUT,
-            'detections': [], 'commandes': [], 'radars': [],
+            'detections': [], 'commandes': [], 'radars': [], 'ana': [], 'consignes': [],
         })
     base = st[0]
     registres = []          # table complète des registres de la base (Excel / PDF)
@@ -547,6 +616,32 @@ def calculer_plan(projet):
                 desc = f"AI{p['ai']} : 16384 = 4 mA, 49152 = 20 mA"
             reg(adr, nom, 'Radar (brut 4-20 mA)', S['nom'], desc)
 
+    # ---- entrées analogiques génériques 353nn et consignes de sortie analogique 450nn (v2.0)
+    an = ao = 0
+    for S in st:
+        for p in sorted([p for p in S['periph'] if p['type'] == 'ENTREE_ANA'], key=registre_ai):
+            an += 1
+            mode = p.get('mode', 'courant')
+            rp1, rp2, e1, e2, ue = ANA_POINTS[mode]
+            A = {'adresse': ANA_BASE + an, 'nom': nomu(S['nom'], p['nom']), 'label': p['nom'], 'ai': p['ai'], 'mode': mode,
+                 'distant': registre_ai(p), 'io': io_ai(p), 'rp1': rp1, 'rp2': rp2,
+                 'dp1': p.get('mesure_bas', e1), 'dp2': p.get('mesure_haut', e2),
+                 'unite': p.get('unite') if p.get('mesure_bas') is not None else ue}
+            S['ana'].append(A)
+            ent = f"AI{p['ai']} {'0-20 mA' if mode == 'courant' else '0-5 V'}"
+            reg(A['adresse'], A['nom'], 'Mesure analogique', S['nom'],
+                f"{ent} : {rp1} = {_fmt(A['dp1'])} {A['unite']}, {rp2} = {_fmt(A['dp2'])} {A['unite']}")
+        for p in sorted([p for p in S['periph'] if p['type'] == 'SORTIE_ANA'], key=lambda p: p['ao']):
+            ao += 1
+            rp1, rp2, e1, e2, ue = AO_POINTS
+            c = {'adresse': AO_BASE + ao, 'nom': nomu(S['nom'], p['nom']), 'label': p['nom'], 'ao': p['ao'],
+                 'distant': 40000 + p['ao'], 'io': f"Aot{p['ao']}", 'rp1': rp1, 'rp2': rp2,
+                 'dp1': p.get('mesure_bas', e1), 'dp2': p.get('mesure_haut', e2),
+                 'unite': p.get('unite') if p.get('mesure_bas') is not None else ue}
+            S['consignes'].append(c)
+            reg(c['adresse'], c['nom'], 'Consigne sortie analogique', S['nom'],
+                f"AO{p['ao']} 4-20 mA : écrire {rp1} = {_fmt(c['dp1'])} {c['unite']} … {rp2} = {_fmt(c['dp2'])} {c['unite']}")
+
     # ---- registres d'état par station
     for S in st:
         xx = S['xx']
@@ -571,7 +666,10 @@ def calculer_plan(projet):
     for S in rem:
         if S['radars']: sequence.append(('READ', S, 'RADAR'))
     for S in rem:
-        if S['commandes']: sequence.append(('SGNL', S, None))
+        for j, run in enumerate(_series(S['ana']), start=1):
+            sequence.append(('READ', S, ('ANA', j, run)))
+    for S in rem:
+        if S['commandes'] or S['consignes']: sequence.append(('SGNL', S, None))
     T = max(1, len(sequence)) * CRENEAU_S
     creneaux = []
     for k, (typ, S, what) in enumerate(sequence):
@@ -588,6 +686,10 @@ def calculer_plan(projet):
                 d0 = S['detections'][0]
                 m = dict(nom=f"{S['nom']}_ReadDET", local=d0['adresse'], distant=10000 + d0['di'], nb=len(S['detections']),
                          fail=int(f'154{xx}'), inv=1 if S['inv_entrees'] else 0)
+            elif isinstance(what, tuple):
+                _, j, run = what
+                m = dict(nom=f"{S['nom']}_ReadANA{j}", local=run[0]['adresse'], distant=run[0]['distant'], nb=len(run),
+                         fail=int(f'158{xx}'), inv=0)
             else:
                 r0 = S['radars'][0]
                 m = dict(nom=f"{S['nom']}_ReadRADAR", local=r0['adresse'], distant=30000 + r0['ai'], nb=len(S['radars']),
@@ -597,16 +699,18 @@ def calculer_plan(projet):
             creneaux.append({'k': k + 1, 'offset': off, 'type': 'Lecture', 'mapping': m['nom'], 'station': S['nom'],
                              'ip': S['ip'], 'failreg': m['fail']})
         else:
-            paires = [(c['adresse'], d) for c in S['commandes'] for d in c['do']]
+            paires = [(c['adresse'], d) for c in S['commandes'] for d in c['do']] + \
+                     [(c['adresse'], c['distant']) for c in S['consignes']]
             m = dict(nom=f"{S['nom']}-SGNL", dest=S['uid'], periode=T, offset=off, fail=int(f'155{xx}'),
                      paires=paires, inv=1 if S['inv_sorties'] else 0, ack=1)
             base['scatters'].append(m)
             creneaux.append({'k': k + 1, 'offset': off, 'type': 'Commandes', 'mapping': m['nom'], 'station': S['nom'],
                              'ip': S['ip'], 'failreg': m['fail']})
     # ---- mappings locaux de la base
-    if base['commandes']:
+    if base['commandes'] or base['consignes']:
         base['scatters'].insert(0, dict(nom=f"{base['nom']}-SGNL", dest='local', periode=0, offset=0, fail=15501,
-                                        paires=[(c['adresse'], d) for c in base['commandes'] for d in c['do']],
+                                        paires=[(c['adresse'], d) for c in base['commandes'] for d in c['do']] +
+                                               [(c['adresse'], c['distant']) for c in base['consignes']],
                                         inv=1 if base['inv_sorties'] else 0, ack=1))
     if base['detections']:
         base['scatters'].append(dict(nom=f"{base['nom']}-ALM", dest='local', periode=0, offset=0, fail=0,
@@ -618,9 +722,12 @@ def calculer_plan(projet):
     dftl += [(30007, 30501), (30401, 35101)]
     # radar sur la base : copie locale de l'entrée analogique dans son registre 352nn (pas d'IO Plus, pas de radio)
     dftl += [(30000 + R['ai'], R['adresse']) for R in base['radars']]
+    dftl += [(A['distant'], A['adresse']) for A in base['ana']]          # entrée analogique générique sur la base
     base['scatters'].append(dict(nom=f"{base['nom']}-DFTL", dest='local', periode=0, offset=0, fail=0,
                                  paires=dftl, inv=0, ack=1))
     base['failsafe'] = [FAILSAFE_COMMANDES] + [(int(f'15{f}01'), FAILSAFE_COUNT) for f in range(1, 8)]
+    if any(S['ana'] for S in rem):
+        base['failsafe'].append((15801, FAILSAFE_COUNT))                # échecs de lecture analogique 158xx
     base['sensibilite'] = [(30007, 1, SENSIB_BATTV_BASE)]
     base['ack'] = ACK_FORT
     if base['mainv']:
@@ -649,11 +756,12 @@ def calculer_plan(projet):
         lignes.append(ligne('LOAD', int(f'152{xx}'), f"{S['nom']} BATTV_FAIL"))
         n = 1
         for fam, cond, lab in (('153', True, 'RSSI'), ('154', bool(S['detections']), 'DET'),
-                               ('156', bool(S['mainv']), 'MAINV'), ('157', bool(S['radars']), 'RADAR')):
+                               ('156', bool(S['mainv']), 'MAINV'), ('157', bool(S['radars']), 'RADAR'),
+                               ('158', bool(S['ana']), 'ANA')):
             if cond:
                 lignes.append(ligne('ADD', int(f'{fam}{xx}'), f"+ {S['nom']} {lab}_FAIL")); n += 1
         lignes.append(ligne('GE', n, 'Toutes les lectures en echec', I=1))
-        if S['commandes']:
+        if S['commandes'] or S['consignes']:
             lignes.append(ligne('OR', int(f'155{xx}'), f"OU {S['nom']} SGNL_FAIL"))
         lignes.append(ligne('STOR', int(f'151{xx}'), f"{S['nom']} COMFLAG"))
     base['iop'] = lignes
@@ -745,6 +853,15 @@ def tag_radar(nom, registre, R):
     return tag(nom, registre, style)
 
 
+def tag_ana(nom, registre, X):
+    """Tag d'une E/S analogique générique (mesure ou consigne) : échelle de l'utilisateur, sans alarme
+    (les seuils d'alarme sont gérés par le datalogger) : alarmes placées sur les limites hors plage."""
+    bas, haut = sorted((X['dp1'], X['dp2']))
+    marge = (haut - bas) * 0.1
+    over, under = _fmt(haut + marge), _fmt(bas - marge)
+    return tag(nom, registre, (X['unite'], over, under, over, under, X['rp1'], X['rp2'], _fmt(X['dp1']), _fmt(X['dp2'])))
+
+
 def tag(nom, registre, style, invert=0, haut=None):
     u, over, under, hi, lo, rp1, rp2, dp1, dp2 = style
     if hi is None: hi = haut
@@ -762,6 +879,7 @@ def construire_noms_et_dashboard(S, st, registres):
             noms.append((10000 + d['di'], d['label'] or f"DI{d['di']}"))
         for c in S['commandes']:
             for do in c['do']: noms.append((do, c['label']))
+        noms += [(A['distant'], A['label']) for A in S['ana']] + [(c['distant'], c['label']) for c in S['consignes']]
         noms += [(r['adresse'], r['nom']) for r in registres]
         # dashboard base
         det = [r for X in st for r in X['detections'] if r['label']]
@@ -769,6 +887,10 @@ def construire_noms_et_dashboard(S, st, registres):
         if g: tags += g; groupes.append(('Alarmes', len(g)))
         g = [tag_radar(R['nom'], R['adresse'], R) for X in st for R in X['radars']]
         if g: tags += g; groupes.append(('Radars', len(g)))
+        g = [tag_ana(A['nom'], A['adresse'], A) for X in st for A in X['ana']]
+        if g: tags += g; groupes.append(('Mesures', len(g)))
+        g = [tag_ana(c['nom'], c['adresse'], c) for X in st for c in X['consignes']]
+        if g: tags += g; groupes.append(('Consignes AO', len(g)))
         # une seule commande de chaque genre (feu rouge, orange clignotant, orange fixe, vert, sirène…) :
         # le tableau de bord de la base est limité à 50 tags
         vus, g = set(), []
@@ -820,6 +942,14 @@ def construire_noms_et_dashboard(S, st, registres):
                 g.append(tag(c['label'], do, TAG_ONOFF))
         if g: tags += g; groupes.append(('Signalisation', len(g)))
         g = []
+        for A in S['ana']:
+            noms.append((A['distant'], A['label'])); g.append(tag_ana(A['label'], A['distant'], A))
+        if g: tags += g; groupes.append(('Mesures', len(g)))
+        g = []
+        for c in S['consignes']:
+            noms.append((c['distant'], c['label'])); g.append(tag_ana(c['label'], c['distant'], c))
+        if g: tags += g; groupes.append(('Consignes AO', len(g)))
+        g = []
         if S['mainv']: g.append(tag('Alim.', 10000 + S['mainv'].get('di', 8), TAG_OK))
         g += [tag('Batterie', 30007, TAG_VB), tag('RSSI', 30401, TAG_RSSI)]
         tags += g; groupes.append(('Statut', len(g)))
@@ -830,6 +960,7 @@ def construire_noms_et_dashboard(S, st, registres):
     for c in S['commandes']:
         for do in c['do']: S['noms_io'][f"Dot{do}"] = c['label'][:20]
     for R in S['radars']: S['noms_io'][f"Ain{R['ai']}"] = R['label'][:20]
+    for X in S['ana'] + S['consignes']: S['noms_io'][X['io']] = X['label'][:20]
     vus, propre = set(), []
     for a, n in noms:
         if a not in vus:

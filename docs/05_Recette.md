@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 26 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom.
+Résultat attendu : `Ran 30 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -69,3 +69,12 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] Sur une remote, déplacer un câble de DI1 à une DI libre plus haute, générer : version **majeure** (X+1.0).
 - [ ] Changer la sortie d'une sirène (ex. DO3 → DO5), générer : version **mineure**.
 - [ ] Nom de projet `Site <A> & Co` : le PDF s'exporte et affiche le nom tel quel.
+
+## Entrée et sortie analogiques (moteur v2.0)
+
+- [ ] Remote : **Entrée analogique** AI2, courant, échelle 0–10 bar : page 2, registre 35301 « Mesure analogique » avec `16384 = 0 bar, 49152 = 10 bar` ; tableau de bord de la base (groupe Mesures) en bar.
+- [ ] Base : **Entrée analogique** AI4, **tension**, échelle 0–48 V : registre 3530x ; en mode Tension, seules AI3 et AI4 sont proposées.
+- [ ] Une AI prise par un radar est grisée pour l'entrée analogique, et inversement.
+- [ ] Remote : **Sortie analogique** AO1 : registre 45001 « Consigne sortie analogique » ; câblage : ligne AO1 ; checklist : « écrire 16384 puis 49152 dans 45001 ».
+- [ ] Ajouter une entrée ou une sortie analogique à un projet existant : version **majeure** ; changer seulement l'échelle : **mineure**.
+- [ ] Ouvrir un projet existant sans E/S analogique et générer : fichiers identiques à la 1.4.0 (hors date et version).

@@ -410,5 +410,97 @@ class TestRelecture(unittest.TestCase):
             PDF.ecrire_pdf(V.donnees_pdf(pl), ch, pl['systeme']['nom_projet'])
             self.assertGreater(os.path.getsize(ch), 1000)
 
+
+class TestAnalogique(unittest.TestCase):
+    """v2.0 : entrée analogique générique (mesure) et sortie analogique générique (consigne AO)."""
+
+    def projet(self):
+        p = M.normaliser_projet(charger('demo_site_A'))
+        R = {r['nom']: r for r in p['radios']}
+        R['A-BASE']['peripheriques'] += [
+            {'type': 'ENTREE_ANA', 'nom': 'BATT_CAM', 'ai': 4, 'mode': 'tension', 'mesure_bas': 0, 'mesure_haut': 48, 'unite': 'V'},
+            {'type': 'SORTIE_ANA', 'nom': 'CONS_B', 'ao': 2}]
+        R['A-SM1']['peripheriques'] += [
+            {'type': 'ENTREE_ANA', 'nom': 'NIVEAU', 'ai': 1, 'mesure_bas': 0, 'mesure_haut': 300, 'unite': 'cm'},
+            {'type': 'ENTREE_ANA', 'nom': 'TEMP', 'ai': 2, 'mesure_bas': -20, 'mesure_haut': 60, 'unite': 'degC'},
+            {'type': 'ENTREE_ANA', 'nom': 'PLUIE', 'ai': 4, 'mode': 'tension'}]
+        R['A-F1']['peripheriques'].append({'type': 'SORTIE_ANA', 'nom': 'VANNE', 'ao': 1, 'mesure_bas': 0,
+                                           'mesure_haut': 100, 'unite': '%'})
+        return p
+
+    def test_plan(self):
+        p = self.projet()
+        self.assertEqual(M.valider(p), [])
+        pl = M.calculer_plan(p)
+        S = {X['nom']: X for X in pl['stations']}
+        B, SM1, F1 = S['A-BASE'], S['A-SM1'], S['A-F1']
+        reg = {r['adresse']: r for r in pl['registres']}
+        self.assertEqual([A['adresse'] for A in B['ana'] + SM1['ana']], [35301, 35302, 35303, 35304])
+        self.assertEqual([A['distant'] for A in SM1['ana']], [30001, 30002, 30010])
+        self.assertEqual(reg[35302]['type'], 'Mesure analogique')
+        self.assertEqual([c['adresse'] for c in B['consignes'] + F1['consignes']], [45001, 45002])
+        # lectures : AI1+AI2 en une lecture, AI4 tension en une autre ; échec 158xx
+        lus = [m for m in B['reads'] if m['nom'].startswith('A-SM1_ReadANA')]
+        self.assertEqual([(m['distant'], m['nb'], m['local'], m['fail']) for m in lus],
+                         [(30001, 2, 35302, 15802), (30010, 1, 35304, 15802)])
+        self.assertIn((15801, M.FAILSAFE_COUNT), B['failsafe'])
+        # IO Plus : comflag = toutes les lectures en échec, y compris les deux lectures ANA (même registre 158xx)
+        bl, cur = [], []
+        for l in B['iop']:
+            cur.append(l)
+            if l[0] == M.OP['STOR']: bl.append(cur); cur = []
+        b = next(x for x in bl if x[-1][4] == 15102)
+        self.assertIn(15802, [l[4] for l in b if l[0] == M.OP['ADD']])
+        # consignes : remote F1 dans son SGNL, base en local ; mesure de la base copiée en local
+        sg = next(m for m in B['scatters'] if m['nom'] == 'A-F1-SGNL')
+        self.assertIn((45002, 40001), sg['paires'])
+        loc = next(m for m in B['scatters'] if m['nom'] == 'A-BASE-SGNL')
+        self.assertIn((45001, 40002), loc['paires'])
+        dftl = next(m for m in B['scatters'] if m['nom'] == 'A-BASE-DFTL')
+        self.assertIn((30010, 35301), dftl['paires'])
+        # tableaux de bord et noms d'E/S
+        self.assertIn('Mesures', dict(B['groupes'])); self.assertIn('Consignes AO', dict(B['groupes']))
+        t = next(t for t in B['tags'] if t['registre'] == 35302)
+        self.assertEqual((t['unites'], t['rp1'], t['rp2'], t['dp1'], t['dp2']), ('cm', 16384, 49152, '0', '300'))
+        self.assertEqual(SM1['noms_io']['Ain6'], 'PLUIE')        # AI4 en tension = Ain6 dans CConfig
+        self.assertEqual(F1['noms_io']['Aot1'], 'VANNE')
+        self.assertIn('Mesures', dict(SM1['groupes'])); self.assertIn('Consignes AO', dict(F1['groupes']))
+
+    def test_fichiers_et_polling(self):
+        p = self.projet()
+        with tempfile.TemporaryDirectory() as d:
+            plan, fichiers = M.generer_tout(p, d)
+            txt = Path(fichiers[0]).read_bytes().decode('utf-16')
+        self.assertIn('VANNE', txt); self.assertIn('BATT_CAM', txt)
+        B = plan['stations'][0]
+        per = [m for m in B['reads'] + B['scatters'] if m['periode']]
+        self.assertEqual(sorted(m['offset'] for m in per), list(range(0, plan['T'], M.CRENEAU_S)))
+        fs = [(a, a + c - 1) for a, c in B['failsafe']]
+        for m in B['reads'] + B['scatters']:
+            if m['fail']: self.assertTrue(any(a <= m['fail'] <= b for a, b in fs), m['nom'])
+
+    def test_validation(self):
+        def err(per, radio='A-SM1'):
+            p = M.normaliser_projet(charger('demo_site_A'))
+            next(r for r in p['radios'] if r['nom'] == radio)['peripheriques'].append(per)
+            return ' '.join(M.valider(p))
+        self.assertIn('AI3 ou AI4 en tension', err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 1, 'mode': 'tension'}))
+        self.assertIn('AO1 ou AO2', err({'type': 'SORTIE_ANA', 'nom': 'X', 'ao': 3}))
+        self.assertIn('échelle incomplète', err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 1, 'mesure_bas': 0}))
+        self.assertIn('unité', err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 1, 'mesure_bas': 0, 'mesure_haut': 5, 'unite': ''}))
+        p = self.projet()                                   # AI1 de A-SM1 déjà prise par NIVEAU
+        next(r for r in p['radios'] if r['nom'] == 'A-SM1')['peripheriques'].append(
+            {'type': 'RADAR', 'nom': 'R', 'ai': 1, 'seuil_haut_ma': 12.0})
+        self.assertIn('AI1 déjà utilisée', ' '.join(M.valider(p)))
+        self.assertEqual(err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 3, 'mode': 'tension'}), '')
+
+    def test_versions(self):
+        a = M.normaliser_projet(charger('demo_site_A'))
+        b = self.projet()
+        self.assertEqual(M.classer_modification(a, b), 'majeure')           # périphériques ajoutés
+        c = json.loads(json.dumps(b))
+        next(x for r in c['radios'] for x in r['peripheriques'] if x['nom'] == 'NIVEAU')['mesure_haut'] = 400
+        self.assertEqual(M.classer_modification(b, c), 'mineure')           # échelle changée : aucun registre ne bouge
+
 if __name__ == '__main__':
     unittest.main()

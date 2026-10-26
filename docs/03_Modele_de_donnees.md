@@ -84,6 +84,8 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 | `SPOT` | Spot | `do` | |
 | `CAMERA_SPOT` | Caméra + spot (1 commande) | `do_camera`, `do_spot` | `{"type":"CAMERA_SPOT","nom":"CAM","do_camera":1,"do_spot":2}` |
 | `SORTIE` | Sortie générique | `do` | |
+| `ENTREE_ANA` | Entrée analogique (mesure) | `ai` : 1 à 4 ; `mode` : `courant` (0-20 mA, AI1–AI4) ou `tension` (0-5 V, **AI3 ou AI4 seulement**) ; échelle facultative : `mesure_bas`, `mesure_haut` (valeur à 4 mA et à 20 mA en courant, à 0 V et à 5 V en tension), `unite` (1 à 8 caractères) | `{"type":"ENTREE_ANA","nom":"BATT_CAM","ai":4,"mode":"tension","mesure_bas":0,"mesure_haut":48,"unite":"V"}` |
+| `SORTIE_ANA` | Sortie analogique 4-20 mA | `ao` : 1 ou 2 ; échelle facultative `mesure_bas`, `mesure_haut` (valeur à 4 et à 20 mA), `unite` | `{"type":"SORTIE_ANA","nom":"VANNE","ao":1}` |
 
 **Ancien format du feu** (`do_orange`, avant la v1.5 du moteur) : `M.normaliser_projet(projet)` le convertit en `do_orange_cli` (l'ancien orange était un orange clignotant) et ajoute `do_orange_fixe: null`. `M.valider`, `M.calculer_plan` et `M.preparer_generation` appliquent cette conversion d'eux-mêmes ; l'interface l'appelle à l'ouverture pour que le fichier enregistré soit au nouveau format.
 
@@ -95,9 +97,11 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 
 **Tableau de bord de la base** (50 éléments au maximum, limite ELPRO) : toutes les alarmes (détections) et tous les radars ; **une seule commande de chaque genre** (feu rouge, orange clignotant, orange fixe, vert, sirène, flash, caméra…, la première du site) ; tous les BATTV, MAINV, RSSI et comflags. S'il y a plus de 50 éléments, les RSSI sont retirés et `plan['avertissements']` contient un message.
 
+**Entrées et sorties analogiques génériques (moteur v2.0)** : mesure seule, **sans alarme** (les alarmes éventuelles sont faites par le datalogger). Registres de la base : mesures **35301–35350** (valeur brute : 16384 = 4 mA, 49152 = 20 mA en courant ; 8192 = 0 V, 49152 = 5 V en tension), consignes **45001–45020** (écrites par la supervision, recopiées vers l'AO de la radio : 16384 = 4 mA, 49152 = 20 mA), échec de lecture **158xx** (non listé, comme les autres registres d'échec). Numérotation dans l'ordre des radios puis des AI/AO. Au plus 50 entrées et 20 sorties analogiques sur le site. Une AI sert soit à un radar, soit à une entrée analogique.
+
 **Noms** : les noms de registres et de tags du tableau de bord sont limités à 16 caractères (`M.NOM_MAX`) et uniques, construits par `M.nom_court(station, libellé)`. Au-delà, la radio affiche un nom d'E/S par défaut (DIn1, DOut5…) à la place.
 
-Plages : `di` et `do` de 1 à 8 ; `ai` de 1 à 4 ; une même DI/DO/AI ne peut servir qu'une fois dans la radio (MAINV compris).
+Plages : `di` et `do` de 1 à 8 ; `ai` de 1 à 4 ; `ao` 1 ou 2 ; une même DI/DO/AI/AO ne peut servir qu'une fois dans la radio (MAINV compris).
 
 Contraintes vérifiées par `M.valider()` (rien à coder côté interface, seulement afficher les messages) :
 - radars d'une même radio sur des AI consécutives. La base accepte tous les périphériques ; un radar sur la base est simplement recopié en local dans son registre 352nn (pas d'IO Plus) ;

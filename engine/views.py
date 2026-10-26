@@ -156,6 +156,8 @@ def _cablage(S, plan):
             do[o] = (c['label'], 'Commande', c['adresse'])
     for R in S['radars']:
         ai[R['ai']] = (R['label'], 'RADAR', R['adresse'])
+    for A in S.get('ana', []):
+        ai[A['ai']] = (A['label'], 'Mesure ' + ('0-20 mA' if A['mode'] == 'courant' else '0-5 V'), A['adresse'])
     L = []
     for i in range(1, 9):
         p = di.get(i); L.append([S['nom'], f'DI{i}', *(p if p else ('libre', '', '')), 'Oui' if p and S['inv_entrees'] and p[1] != 'Secteur' else ''])
@@ -163,6 +165,8 @@ def _cablage(S, plan):
         p = do.get(i); L.append([S['nom'], f'DO{i}', *(p if p else ('libre', '', '')), 'Oui' if p and S['inv_sorties'] else ''])
     for i in range(1, 5):
         p = ai.get(i); L.append([S['nom'], f'AI{i}', *(p if p else ('libre', '', '')), ''])
+    for c in S.get('consignes', []):           # lignes AO seulement si utilisées (v2.0)
+        L.append([S['nom'], f"AO{c['ao']}", c['label'], 'Consigne 4-20 mA', c['adresse'], ''])
     return L
 
 
@@ -238,11 +242,18 @@ def donnees_pdf(plan):
         for R in S['radars']:
             ck.append(f"{S['nom']} : faire varier AI{R['ai']} (générateur 4-20 mA) → {R['adresse']} suit, 1 envoi max toutes les {R['tmin_s']} s.")
             ck.append(f"{S['nom']} : franchir {R['seuil_haut_ma']} mA puis {R['seuil_haut_ma'] - R['hysteresis_ma']:.1f} mA → envoi immédiat à chaque franchissement.")
+        for A in S.get('ana', []):
+            ck.append(f"{S['nom']} : faire varier {A['label']} (AI{A['ai']}) → {A['adresse']} suit au cycle de polling suivant.")
+        for c in S.get('consignes', []):
+            ck.append(f"{S['nom']} : écrire {c['rp1']} puis {c['rp2']} dans {c['adresse']} → AO{c['ao']} passe à 4 puis 20 mA.")
         if S['mainv']: ck.append(f"{S['nom']} : couper le secteur → 105{S['xx']} change.")
     B = st[0]
     for d in B['detections']:
         if d['label']: ck.append(f"{B['nom']} : déclencher {d['label']} (DI{d['di']}) → {d['adresse']} change.")
     for c in B['commandes']: ck.append(f"{B['nom']} : écrire 1 puis 0 dans {c['adresse']} → {c['label']}.")
+    for A in B.get('ana', []): ck.append(f"{B['nom']} : faire varier {A['label']} (AI{A['ai']}) → {A['adresse']} suit.")
+    for c in B.get('consignes', []):
+        ck.append(f"{B['nom']} : écrire {c['rp1']} puis {c['rp2']} dans {c['adresse']} → AO{c['ao']} passe à 4 puis 20 mA.")
     ck.append(f"Redémarrer {B['nom']} : tous les comflags et registres d'échec repartent à 0, 10501/30501/35101 se remplissent.")
     sections.append({'titre': '4. Checklist de mise en service', 'blocs': [{'type': 'checklist', 'items': ck}]})
     return sections

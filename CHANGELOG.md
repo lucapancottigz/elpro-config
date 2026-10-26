@@ -2,6 +2,13 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.5.0] — 2026-10-26
+
+### Ajouté
+- Périphérique **Entrée analogique** (mesure seule, sans alarme) : mode courant 0-20 mA (AI1–AI4) ou tension 0-5 V (AI3–AI4), échelle facultative (valeur basse, valeur haute, unité). Mesures dans les registres 35301–35350 de la base, affichées dans le tableau de bord (groupe « Mesures ») dans l'unité de l'échelle.
+- Périphérique **Sortie analogique 4-20 mA** : AO1–AO2, échelle facultative. Consignes dans les registres 45001–45020 de la base (écrites par la supervision, recopiées vers l'AO de la radio), groupe « Consignes AO » du tableau de bord.
+- Câblage (page 2, PDF, Excel) et checklist de mise en service : lignes des entrées et sorties analogiques.
+
 ## [1.4.0] — 2026-10-19
 
 ### Modifié
@@ -63,6 +70,7 @@ Première version publique (retirée, remplacée par la 1.0.1).
 - Deux projets de démonstration fictifs (`demo_site_A`, `demo_site_B`).
 - Installateur Windows pour tous les utilisateurs, avec icône sur le bureau et raccourci dans le menu Démarrer (au choix).
 
+[1.5.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.5.0
 [1.4.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.4.0
 [1.3.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.3.0
 [1.2.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.2.0
