@@ -20,3 +20,7 @@ verification.txt
 
 # Graphe de connaissances (graphify) : local seulement
 graphify-out/
+
+# Fichiers locaux de graphify / Claude Code
+.claude/
+CLAUDE.md
