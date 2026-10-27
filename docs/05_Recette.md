@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 35 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé.
+Résultat attendu : `Ran 35 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -57,7 +57,7 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 
 ## Noms courts et échelle du radar (moteur v1.7)
 
-- [ ] Tous les noms de registres (I/O Register Name Configuration) et de tags du tableau de bord font 16 caractères au plus. Sur la radio, le tableau de bord n'affiche plus de « DIn1 », « DOut5 »…
+- [ ] Tous les noms de registres (I/O Register Name Configuration) et de tags du tableau de bord font 15 caractères au plus (constaté sur radio : un tag de 16 caractères est remplacé par DIn1, DOut5…). Sur la radio, le tableau de bord n'affiche plus de « DIn1 », « DOut5 »…
 - [ ] Radar avec échelle 0–1000 cm, seuil 500 cm : tableau de bord en cm, alarme haute à 500 cm ; dans le JSON, `seuil_haut_ma` = 12.0.
 - [ ] Tableau de bord de la base : toutes les alarmes, une seule commande par genre (1 feu rouge, 1 orange clignotant…), tous les BATTV, MAINV, RSSI et comflags ; au plus 50 éléments.
 - [ ] `demo_site_B` (57 éléments) : les RSSI sont retirés du tableau de bord de la base et une boîte « Configuration générée avec des remarques » s'affiche.
@@ -87,3 +87,8 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] Décocher, Générer : version mineure ; `.sconf` `_DESACTIVE`.
 - [ ] Ouvrir un projet existant (sans l'option) et générer : « aucune modification ».
 - [ ] Charger un XML dans une radio de banc par sa page web : configuration complète, IO Plus dans l'état choisi ; sur la base, régler Scan Rate 30 et Records per File 2880.
+
+## Noms limités à 15 caractères (moteur v2.2)
+
+- [ ] `examples\demo_site_B.json`, Générer : page 2, registre 411 nommé `B-BAS_F1_OR_CLI` ; aucun nom de registre ou de tag de plus de 15 caractères.
+- [ ] Ajouter un périphérique : le nom est limité à 15 caractères à la saisie.

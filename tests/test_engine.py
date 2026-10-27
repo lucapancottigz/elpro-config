@@ -228,7 +228,7 @@ class TestRegistres(unittest.TestCase):
 
 class TestNomsEtRadar(unittest.TestCase):
     def test_noms_16_caracteres(self):
-        """Noms de registres et de tags : 16 caractères max (au-delà la radio affiche DIn1, DOut5…), uniques."""
+        """Noms de registres et de tags : 15 caractères max (au-delà la radio affiche DIn1, DOut5…), uniques."""
         p = charger('demo_site_B')
         p['radios'][0]['nom'] = 'NOM-TRES-LONG-BASE'                       # 18 caractères
         for r in p['radios'][1:]:

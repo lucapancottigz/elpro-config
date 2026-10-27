@@ -152,8 +152,8 @@ class DialoguePeripherique(QDialog):
         for t, lib in LIBELLES.items():          # tous les types pour toutes les radios, base comprise
             self.cb_type.addItem(lib, t)
         self.ed_nom = QLineEdit()
-        self.ed_nom.setMaxLength(16)
-        self.ed_nom.setValidator(QRegularExpressionValidator(QRegularExpression(r'[A-Za-z0-9_]{0,16}'), self))
+        self.ed_nom.setMaxLength(15)
+        self.ed_nom.setValidator(QRegularExpressionValidator(QRegularExpression(r'[A-Za-z0-9_]{0,15}'), self))
         self.ed_nom.textEdited.connect(self._nom_edite)
 
         haut = QFormLayout()

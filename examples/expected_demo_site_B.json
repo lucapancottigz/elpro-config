@@ -24,7 +24,7 @@
   },
   {
    "adresse": 411,
-   "nom": "B-BASE_F1_OR_CLI",
+   "nom": "B-BAS_F1_OR_CLI",
    "type": "Commande feu orange clignotant",
    "station": "B-BASE",
    "description": "DO6"
@@ -115,7 +115,7 @@
   },
   {
    "adresse": 15001,
-   "nom": "B-BASE_BT_ALARME",
+   "nom": "B-BAS_BT_ALARME",
    "type": "Détection",
    "station": "B-BASE",
    "description": "DI1"

@@ -121,6 +121,7 @@ def main():
     it8 = cb.model().item(cb.findData(8))
     verifier(not it8.isEnabled() and '(MAINV)' in it8.text(), 'DI8 occupée par MAINV')
     verifier(d.ed_nom.text() == 'CABLE3', 'nom proposé CABLE3')
+    verifier(d.ed_nom.maxLength() == M.NOM_MAX, 'nom du périphérique limité à 15 caractères à la saisie')
     verifier(d.cb_type.findData('RADAR') >= 0, 'Radar proposé sur une remote')
     p1.tab_radios.selectRow(0)
     db = dialogs.DialoguePeripherique(p1, p1.projet, p1.radio_courante())
@@ -386,14 +387,15 @@ def main():
     cmd = {c['nom']: c['adresse'] for S in p2.plan['stations'] for c in S['commandes']}
     verifier([cmd.get(f'B-F3_F3_{c}') for c in ('ROUGE', 'OR_CLI', 'OR_FIXE', 'VERT')] == [403, 413, 423, 443],
              'demo_site_B : B-F3 commandes 403, 413, 423, 443')
+    verifier(cmd.get('B-BAS_F1_OR_CLI') == 411, 'demo_site_B : registre 411 nommé B-BAS_F1_OR_CLI')
     autres = sorted(a for n, a in cmd.items() if not n.endswith(('_ROUGE', '_OR_CLI', '_OR_FIXE', '_VERT')))
     verifier(autres == list(range(431, 438)), 'demo_site_B : autres signalisations en 431–437')
     verifier(cmd.get('CAMON_SPOTON') == 433 and cmd.get('SIRENE_FLASH') == 435,
              'demo_site_B : noms raccourcis CAMON_SPOTON (433) et SIRENE_FLASH (435)')
     noms = [n for S in p2.plan['stations'] for _a, n in S['noms_registres']] + \
            [t['nom'] for S in p2.plan['stations'] for t in S['tags']]
-    verifier(noms and max(len(n) for n in noms) <= M.NOM_MAX == 16,
-             'demo_site_B : noms de registres et de tags de 16 caractères au plus, toutes radios')
+    verifier(noms and max(len(n) for n in noms) <= M.NOM_MAX == 15,
+             'demo_site_B : noms de registres et de tags de 15 caractères au plus, toutes radios')
     dash = [l for ch, n in p2.noeuds.items() if ch[2:] == ('B-BASE', 'Dashboard') for t in n['contenu'] for l in t['lignes']]
     noms_dash = [str(c) for l in dash for c in l if isinstance(c, str)]
     verifier(dash and not any(re.fullmatch(r'D(In|Out)\d+', c) for c in noms_dash),

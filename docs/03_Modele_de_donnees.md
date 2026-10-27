@@ -71,7 +71,7 @@ L'ordre de la liste **compte** : la première radio est obligatoirement la base,
 
 ## `peripheriques`
 
-Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, unique dans la radio) et des champs propres au type :
+Chaque élément a un `type`, un `nom` (1 à 15 caractères `A-Z a-z 0-9 _`, unique dans la radio) et des champs propres au type :
 
 | `type` | Libellé à afficher | Champs | Exemple |
 |---|---|---|---|
@@ -104,7 +104,7 @@ Chaque élément a un `type`, un `nom` (1 à 16 caractères `A-Z a-z 0-9 _`, uni
 
 **Entrées et sorties analogiques génériques (moteur v2.0)** : mesure seule, **sans alarme** (les alarmes éventuelles sont faites par le datalogger). Registres de la base : mesures **35301–35350** (valeur brute : 16384 = 4 mA, 49152 = 20 mA en courant ; 8192 = 0 V, 49152 = 5 V en tension), consignes **45001–45020** (écrites par la supervision, recopiées vers l'AO de la radio : 16384 = 4 mA, 49152 = 20 mA), échec de lecture **158xx** (non listé, comme les autres registres d'échec). Numérotation dans l'ordre des radios puis des AI/AO. Au plus 50 entrées et 20 sorties analogiques sur le site. Une AI sert soit à un radar, soit à une entrée analogique.
 
-**Noms** : les noms de registres et de tags du tableau de bord sont limités à 16 caractères (`M.NOM_MAX`) et uniques, construits par `M.nom_court(station, libellé)`. Au-delà, la radio affiche un nom d'E/S par défaut (DIn1, DOut5…) à la place.
+**Noms** : les noms de registres et de tags du tableau de bord sont limités à 15 caractères (`M.NOM_MAX`) et uniques, construits par `M.nom_court(station, libellé)`. Au-delà, la radio affiche un nom d'E/S par défaut à la place (constaté sur radio : un tag de 16 caractères est remplacé par DIn1, DOut5…).
 
 Plages : `di` et `do` de 1 à 8 ; `ai` de 1 à 4 ; `ao` 1 ou 2 ; une même DI/DO/AI/AO ne peut servir qu'une fois dans la radio (MAINV compris).
 

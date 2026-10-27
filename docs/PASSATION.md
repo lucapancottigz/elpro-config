@@ -11,7 +11,7 @@ Document de reprise pour le nouveau programmeur. À lire en entier avant toute m
 | Élément | Valeur |
 |---|---|
 | Dépôt | `lucapancottigz/elpro-config` (**public**) |
-| Dernière version publiée | **1.5.0** (moteur de règles v2.1) |
+| Dernière version publiée | **1.5.0** (moteur de règles v2.2) |
 | Langage / interface | Python 3.11+ / PySide6 |
 | Distribution | Installateur Inno Setup publié dans les Releases GitHub |
 | Licence | Propriétaire : « © 2026 Geoazimut SàRL. Tous droits réservés. », geoazimut.com (fichier `LICENSE`) |
@@ -125,7 +125,7 @@ Toute modification en page 1 efface le plan et grise les exports.
 - **Base :** elle accepte n'importe quel périphérique. Un radar sur la base est copié en local (30000 + AI) vers 352nn.
 
 **Noms et tableau de bord**
-- **Noms des registres et du tableau de bord :** **16 caractères au maximum** et uniques (`nom_court`). Au-delà, la radio affiche « DIn1 » ou « DOut5 » à la place du nom.
+- **Noms des registres et du tableau de bord :** **15 caractères au maximum** et uniques (`nom_court`). Au-delà, la radio affiche « DIn1 » ou « DOut5 » à la place du nom (constaté sur radio : un tag de 16 caractères est remplacé par DIn1, DOut5…).
 - **Tableau de bord de la base :** toutes les alarmes et tous les radars, une commande de chaque type, tous les BATTV, MAINV, RSSI et comflags. Il est limité à **50 éléments** : au-delà, les RSSI sont retirés et un avertissement est ajouté.
 
 **Version de configuration** (dans le `.elpro.json`)

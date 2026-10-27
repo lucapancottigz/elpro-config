@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
-Moteur de génération ELPRO GeoAzimut (v2.1) — IMPLÉMENTATION DE RÉFÉRENCE.
+Moteur de génération ELPRO GeoAzimut (v2.2) — IMPLÉMENTATION DE RÉFÉRENCE.
 
 Entrée  : un projet (dict, format décrit dans 03_Modele_de_donnees.md).
 Sorties : - plan (dict)            -> utilisé par la page 2, le PDF et l'Excel
@@ -79,8 +79,9 @@ SORTIES_FEU = (('do_rouge', 'ROUGE', 400), ('do_orange_cli', 'OR_CLI', 410),
 LIBELLES_FEU = {'ROUGE': 'rouge', 'OR_CLI': 'orange clignotant', 'OR_FIXE': 'orange fixe', 'VERT': 'vert'}
 
 # Longueur maximale d'un nom de registre / de tag du tableau de bord : au-delà, la radio affiche un
-# nom d'E/S par défaut (DIn1, DOut5…) à la place (constaté sur radio, noms de 19 caractères).
-NOM_MAX = 16
+# nom d'E/S par défaut (DIn1, DOut5…) à la place. Constaté sur radio (v2.1) : un tag de 16 caractères est
+# remplacé, 15 passe ; les noms de registres (IOUsrCfg) acceptent 16 mais on garde la même règle partout.
+NOM_MAX = 15
 
 
 def nom_court(station, label, maxi=NOM_MAX):
@@ -128,7 +129,7 @@ def _normalise(projet):
 
 
 RE_NOM = re.compile(r'^[A-Za-z0-9_-]{1,20}$')
-RE_NOM_PERIPH = re.compile(r'^[A-Za-z0-9_]{1,16}$')
+RE_NOM_PERIPH = re.compile(r'^[A-Za-z0-9_]{1,15}$')
 CARS_INTERDITS = set('<>&"\' ')
 
 
@@ -379,7 +380,7 @@ def valider(projet):
             if t not in TYPES:
                 E.append(f'{n} : type de périphérique inconnu « {t} ».'); continue
             if not RE_NOM_PERIPH.match(pn):
-                E.append(f'{n} : nom de périphérique « {pn} » : 1 à 16 caractères, lettres/chiffres/_.')
+                E.append(f'{n} : nom de périphérique « {pn} » : 1 à 15 caractères, lettres/chiffres/_.')
             if pn in noms_p:
                 E.append(f'{n} : deux périphériques s\'appellent « {pn} ».')
             noms_p.add(pn)
@@ -875,7 +876,7 @@ def tag_ana(nom, registre, X):
 def tag(nom, registre, style, invert=0, haut=None):
     u, over, under, hi, lo, rp1, rp2, dp1, dp2 = style
     if hi is None: hi = haut
-    return {'nom': nom[:NOM_MAX], 'registre': registre, 'unites': u, 'over': over, 'under': under, 'haut': hi,
+    return {'nom': nom[:NOM_MAX].rstrip(' -_'), 'registre': registre, 'unites': u, 'over': over, 'under': under, 'haut': hi,
             'bas': lo, 'invert': invert, 'rp1': rp1, 'rp2': rp2, 'dp1': dp1, 'dp2': dp2}
 
 

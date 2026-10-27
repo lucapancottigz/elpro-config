@@ -11,6 +11,9 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Num
 - **XML de chaque radio** (bouton « Générer les XML des radios ») : configuration complète au format de l'export de la page web de la radio (réseau, E/S, mappings, fail-safe, tableau de bord, IO Plus et, sur la base, liste du datalog), à charger sans CConfig. Scan Rate et Records per File du datalog restent à régler à la main sur la base.
 - Option **« IO Plus activé dans les fichiers générés »** (page 1, avec confirmation) : IO Plus livré activé ou désactivé (défaut) dans les `.sconf` (`_ACTIVE` / `_DESACTIVE`) et les XML ; « IO Plus : activé » affiché en page 2.
 
+### Corrigé
+- Noms du tableau de bord limités à **15 caractères** (au lieu de 16) : les noms de 16 caractères étaient remplacés par `DIn1`, `DOut5`… sur la radio. Seuls certains noms sont raccourcis d'un caractère (ex. `B-BASE_F1_OR_CLI` → `B-BAS_F1_OR_CLI`) ; aucun numéro de registre ne change. Le nom d'un périphérique est limité à 15 caractères.
+
 ## [1.4.0] — 2026-10-19
 
 ### Modifié
