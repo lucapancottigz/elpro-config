@@ -2,6 +2,18 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.5.0] — 2026-10-26
+
+### Ajouté
+- Périphérique **Entrée analogique** (mesure seule, sans alarme) : mode courant 0-20 mA (AI1–AI4) ou tension 0-5 V (AI3–AI4), échelle facultative (valeur basse, valeur haute, unité). Mesures dans les registres 35301–35350 de la base, affichées dans le tableau de bord (groupe « Mesures ») dans l'unité de l'échelle.
+- Périphérique **Sortie analogique 4-20 mA** : AO1–AO2, échelle facultative. Consignes dans les registres 45001–45020 de la base (écrites par la supervision, recopiées vers l'AO de la radio), groupe « Consignes AO » du tableau de bord.
+- Câblage (page 2, PDF, Excel) et checklist de mise en service : lignes des entrées et sorties analogiques.
+- **XML de chaque radio** (bouton « Générer les XML des radios ») : configuration complète au format de l'export de la page web de la radio (réseau, E/S, mappings, fail-safe, tableau de bord, IO Plus et, sur la base, liste du datalog), à charger sans CConfig. Scan Rate et Records per File du datalog restent à régler à la main sur la base.
+- Option **« IO Plus activé dans les fichiers générés »** (page 1, avec confirmation) : IO Plus livré activé ou désactivé (défaut) dans les `.sconf` (`_ACTIVE` / `_DESACTIVE`) et les XML ; « IO Plus : activé » affiché en page 2.
+
+### Corrigé
+- Noms du tableau de bord limités à **15 caractères** (au lieu de 16) : les noms de 16 caractères étaient remplacés par `DIn1`, `DOut5`… sur la radio. Seuls certains noms sont raccourcis d'un caractère (ex. `B-BASE_F1_OR_CLI` → `B-BAS_F1_OR_CLI`) ; aucun numéro de registre ne change. Le nom d'un périphérique est limité à 15 caractères.
+
 ## [1.4.0] — 2026-10-19
 
 ### Modifié
@@ -63,6 +75,7 @@ Première version publique (retirée, remplacée par la 1.0.1).
 - Deux projets de démonstration fictifs (`demo_site_A`, `demo_site_B`).
 - Installateur Windows pour tous les utilisateurs, avec icône sur le bureau et raccourci dans le menu Démarrer (au choix).
 
+[1.5.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.5.0
 [1.4.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.4.0
 [1.3.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.3.0
 [1.2.0]: https://github.com/lucapancottigz/elpro-config/releases/tag/v1.2.0

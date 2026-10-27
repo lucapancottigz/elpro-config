@@ -16,11 +16,11 @@ Ce dossier contient tout ce qu'il faut pour réaliser l'application. **Tu n'as p
 | `03_Modele_de_donnees.md` | Format exact du projet (JSON) que la page 1 produit | — |
 | `04_Page2_Visualisation.md` | Écran de visualisation façon CConfig + boutons d'export | — |
 | `05_Recette.md` | Tests automatiques et checklist de validation finale | — |
-| `engine/elpro_engine.py` | Règles, calculs, écriture `.cdb` / `.sconf`, import `.cdb` | **NON** |
+| `engine/elpro_engine.py` | Règles, calculs, écriture `.cdb` / `.sconf` / XML des radios, import `.cdb` | **NON** |
 | `engine/views.py` | Données prêtes à afficher (page 2, Excel, PDF) | **NON** |
 | `engine/export_excel.py` | Écriture du fichier Excel | Mise en forme seulement |
 | `engine/export_pdf.py` | Écriture du compte rendu PDF | Mise en forme seulement |
-| `resources/` | Gabarits XML validés dans CConfig, police du PDF, icône de l'application (`app_icon.ico` / `app_icon.png`) | **NON** |
+| `resources/` | Gabarits XML validés dans CConfig (dont `radio_template.xml`, gabarit du XML de chaque radio), police du PDF, icône de l'application (`app_icon.ico` / `app_icon.png`) | **NON** |
 | `examples/*.json` | Deux projets de démonstration fictifs (`demo_site_A`, `demo_site_B`). `demo_site_B` contient un radar sur B-SM3 | **NON** |
 | `examples/expected_*.json` | Résultats attendus du moteur pour ces projets | **NON** |
 | `tests/test_engine.py` | Tests automatiques du moteur | **NON** |
@@ -37,12 +37,12 @@ Ce dossier contient tout ce qu'il faut pour réaliser l'application. **Tu n'as p
 
 | Étape | Livrable | Contrôle |
 |---|---|---|
-| 1 | Environnement Python + lancement des tests | 26 tests `OK` |
+| 1 | Environnement Python + lancement des tests | 35 tests `OK` |
 | 2 | Fenêtre principale avec 2 onglets vides | L'application s'ouvre |
 | 3 | Page 1 complète (`02_Page1_Configuration.md`) | Ouvrir `examples/demo_site_A.json` puis l'enregistrer : fichier identique |
 | 4 | Bouton « Générer » de la page 1 | Messages d'erreur affichés ; projet valide → page 2 remplie |
 | 5 | Page 2 (`04_Page2_Visualisation.md`) | Arbre identique à la structure décrite |
-| 6 | Boutons d'export de la page 2 | Les 4 types de fichiers sont créés |
+| 6 | Boutons d'export de la page 2 | Les 5 types de fichiers sont créés (`.cdb`, `.sconf`, XML des radios, PDF, Excel) |
 | 7 | Import `.cdb` | Un `.cdb` généré se réimporte : mêmes radios |
 | 8 | Empaquetage `.exe` | Fonctionne sur un PC Windows sans Python |
 | 9 | Recette (`05_Recette.md`) | Toutes les cases cochées |

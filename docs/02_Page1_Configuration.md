@@ -69,12 +69,12 @@ Colonnes : `#`, `Nom`, `Rôle`, `IP` (`192.168.1.x`), `Amont`, `Nb périphériqu
 
 ### Périphériques de la radio
 
-Tableau : `Type` (libellé), `Nom`, `Câblage` (ex. `DI3-DI5`, `DO1/DO2`, `AI1 — seuil 12 mA`), boutons Modifier / Supprimer.
+Tableau : `Type` (libellé), `Nom`, `Câblage` (ex. `DI3-DI5`, `DO1/DO2`, `AI1 — seuil 12 mA`, `AI2 — 0-20 mA`, `AI4 — 0-5 V`, `AO1`), boutons Modifier / Supprimer.
 
 « + Ajouter un périphérique » ouvre une boîte de dialogue :
 
 1. Liste **Type** (libellés de la table de `03_Modele_de_donnees.md`). Tous les types sont proposés pour toutes les radios, **base comprise** (y compris Radar).
-2. Champ **Nom** prérempli : `CABLE<n>`, `LIDAR`, `F<n>` (n = numéro du feu sur tout le site), `SIRENE`, `FLASH`, `CAM`, `SPOT`, `RADAR<n>`, `DO<n>`, `DI<n>`…
+2. Champ **Nom** prérempli : `CABLE<n>`, `LIDAR`, `F<n>` (n = numéro du feu sur tout le site), `SIRENE`, `FLASH`, `CAM`, `SPOT`, `RADAR<n>`, `DO<n>`, `DI<n>`, `AI<n>` (entrée analogique), `AO<n>` (sortie analogique)…
 3. Champs de câblage selon le type :
 
 | Type | Champs affichés |
@@ -86,8 +86,10 @@ Tableau : `Type` (libellé), `Nom`, `Câblage` (ex. `DI3-DI5`, `DO1/DO2`, `AI1 �
 | SIRENE, FLASH, SIRENE_FLASH, CAMERA, SPOT, SORTIE | Sortie : DO1–DO8 |
 | CAMERA_SPOT | Sortie caméra, Sortie spot : DO1–DO8 |
 | RADAR | Entrée analogique : AI1–AI4 ; case **Échelle** (cochée par défaut) avec **Mesure à 4 mA** (défaut 0), **Mesure à 20 mA** (défaut 1000) et **Unité** (défaut `cm`) ; Seuil haut, Hystérésis et Variation déclenchant un envoi : saisis **dans l'unité** si l'échelle est cochée (conversion par `M.unite_vers_ma`, stockés en mA), sinon en mA (seuil 4,1–19,9, hystérésis et variation défaut 0,8) ; Intervalle minimal entre envois (s, défaut 10) |
+| ENTREE_ANA | **Mode** : Courant 0-20 mA (défaut) / Tension 0-5 V. **Entrée** : AI1–AI4 en courant, AI3–AI4 en tension (la liste se met à jour au changement de mode). Case **Échelle** (décochée par défaut) avec **Valeur basse** (libellé « Valeur à 4 mA » ou « Valeur à 0 V » selon le mode), **Valeur haute** (« Valeur à 20 mA » / « Valeur à 5 V ») et **Unité**. Échelle décochée : `mesure_bas`, `mesure_haut` et `unite` ne sont pas écrits. **Aucun seuil** |
+| SORTIE_ANA | **Sortie** : AO1–AO2. Case **Échelle** (décochée par défaut) avec **Valeur à 4 mA**, **Valeur à 20 mA**, **Unité** |
 
-Dans les listes DI/DO/AI, les entrées déjà prises par un autre périphérique (ou par MAINV) apparaissent grisées avec le nom de l'occupant entre parenthèses.
+Dans les listes DI/DO/AI/AO, les entrées et sorties déjà prises par un autre périphérique (ou par MAINV ; une AI est prise par un radar ou par une entrée analogique) apparaissent grisées avec le nom de l'occupant entre parenthèses.
 
 4. OK → ajoute l'élément à `peripheriques` ; Annuler → rien.
 

@@ -38,7 +38,8 @@
 - **Visualisation** de la configuration générée, présentée comme dans le logiciel CConfig.
 - **Exports** :
   - fichier projet `.cdb` à ouvrir dans CConfig ;
-  - logiques IO Plus `.sconf` (livrées **désactivées**) ;
+  - logiques IO Plus `.sconf` (livrées **désactivées** par défaut, ou activées si l'option du projet est cochée) ;
+  - un fichier XML par radio, à charger directement par la page web de la radio (configuration complète, IO Plus et datalog de la base) ;
   - compte rendu PDF ;
   - liste d'adresses Excel.
 - **Import** d'un `.cdb` existant (radios, rôles, IP, amonts, clé).
@@ -61,7 +62,7 @@
 1. Ouvrir un exemple : **Ouvrir** › `examples\demo_site_A.json`.
 2. Onglet 1 : vérifier les radios et leurs périphériques.
 3. Cliquer sur **Générer la configuration**.
-4. Onglet 2 : parcourir le résultat, puis exporter le `.cdb`, les `.sconf`, le PDF et l'Excel.
+4. Onglet 2 : parcourir le résultat, puis exporter le `.cdb`, les `.sconf`, les XML des radios, le PDF et l'Excel.
 5. Ouvrir le `.cdb` dans CConfig et programmer les radios.
 
 Les exemples `demo_site_A` et `demo_site_B` sont des sites **fictifs**. `demo_site_B` contient un radar.
@@ -98,7 +99,7 @@ py -3.11 -m venv venv
 
 Ce projet est un outil indépendant développé par Geoazimut SàRL. Il n'est ni affilié à ELPRO Technologies ni approuvé par ELPRO Technologies. ELPRO, 415U et CConfig sont des marques de leurs propriétaires respectifs.
 
-Les fichiers générés doivent être vérifiés par une personne qualifiée avant leur mise en service. Les logiques IO Plus sont livrées désactivées : il faut les activer volontairement sur chaque radio.
+Les fichiers générés doivent être vérifiés par une personne qualifiée avant leur mise en service. Par défaut, les logiques IO Plus sont livrées désactivées : il faut les activer volontairement sur chaque radio (l'option « IO Plus activé dans les fichiers générés » ne doit être cochée qu'en connaissance de cause).
 
 ## Licence
 

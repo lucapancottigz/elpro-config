@@ -30,6 +30,8 @@ LIBELLES = {
     'SPOT': 'Spot',
     'CAMERA_SPOT': 'Caméra + spot (1 commande)',
     'SORTIE': 'Sortie générique',
+    'ENTREE_ANA': 'Entrée analogique (mesure)',
+    'SORTIE_ANA': 'Sortie analogique 4-20 mA',
 }
 ENTREES_SIMPLES = ('CABLE', 'ALARME_BT', 'ENTREE')
 LIDARS = {'LIDAR3': 3, 'LIDAR6': 6}
@@ -42,6 +44,9 @@ SEUILS_RADAR = (('seuil_haut_ma', 'Seuil haut', (4.1, 19.9), 12.0, False),
                 ('hysteresis_ma', 'Hystérésis', (0.1, 15.8), 0.8, True),
                 ('variation_ma', 'Variation déclenchant un envoi', (0.1, 8.0), 0.8, True))
 ECHELLE_DEFAUT = {'mesure_4ma': 0.0, 'mesure_20ma': 1000.0, 'unite': 'cm'}
+# Entrée analogique : (libellé du mode, entrées proposées, libellés des valeurs d'échelle, texte de câblage)
+MODES_ANA = {'courant': ('Courant 0-20 mA', [1, 2, 3, 4], ('Valeur à 4 mA', 'Valeur à 20 mA'), '0-20 mA'),
+             'tension': ('Tension 0-5 V', [3, 4], ('Valeur à 0 V', 'Valeur à 5 V'), '0-5 V')}
 NOM_FIXE = {'LIDAR3': 'LIDAR', 'LIDAR6': 'LIDAR', 'ALARME_BT': 'BT_ALARME', 'SIRENE': 'SIRENE', 'FLASH': 'FLASH',
             'SIRENE_FLASH': 'SIRENE_FLASH', 'CAMERA': 'CAM', 'SPOT': 'SPOT', 'CAMERA_SPOT': 'CAM'}
 
@@ -76,13 +81,17 @@ def texte_cablage(p):
         return f"DO{p.get('do_camera')}/DO{p.get('do_spot')}"
     if t in SORTIES_SIMPLES:
         return f"DO{p.get('do')}"
+    if t == 'ENTREE_ANA':
+        return f"AI{p.get('ai')} — {MODES_ANA.get(p.get('mode', 'courant'), MODES_ANA['courant'])[3]}"
+    if t == 'SORTIE_ANA':
+        return f"AO{p.get('ao')}"
     return ''
 
 
 def occupations(radio, sauf=None):
-    """Entrées/sorties déjà prises dans la radio : ({di: nom}, {do: nom}, {ai: nom}).
+    """Entrées/sorties déjà prises dans la radio : ({di: nom}, {do: nom}, {ai: nom}, {ao: nom}).
     `sauf` = index du périphérique à ignorer (celui qu'on modifie), ou 'MAINV'."""
-    di, do, ai = {}, {}, {}
+    di, do, ai, ao = {}, {}, {}, {}
     mv = radio.get('mainv') or {}
     if mv.get('actif') and sauf != 'MAINV':
         di[mv.get('di', 8)] = 'MAINV'
@@ -95,9 +104,11 @@ def occupations(radio, sauf=None):
         for d in M.sorties_du_periph(p):
             if d is not None:
                 do.setdefault(d, nom)
-        if p.get('type') == 'RADAR' and p.get('ai') is not None:
+        if p.get('type') in ('RADAR', 'ENTREE_ANA') and p.get('ai') is not None:
             ai.setdefault(p['ai'], nom)
-    return di, do, ai
+        if p.get('type') == 'SORTIE_ANA' and p.get('ao') is not None:
+            ao.setdefault(p['ao'], nom)
+    return di, do, ai, ao
 
 
 def remplir_combo(cb, prefixe, valeurs, occupes, aucune=False):
@@ -133,7 +144,7 @@ class DialoguePeripherique(QDialog):
         self.projet, self.radio, self.index = projet, radio, index
         self.setWindowTitle('Modifier le périphérique' if index is not None else 'Ajouter un périphérique')
         self.setMinimumWidth(420)
-        self.occ_di, self.occ_do, self.occ_ai = occupations(radio, sauf=index)
+        self.occ_di, self.occ_do, self.occ_ai, self.occ_ao = occupations(radio, sauf=index)
         existant = radio['peripheriques'][index] if index is not None else None
         self.nom_saisi = existant is not None          # le nom proposé n'est plus remplacé une fois saisi
 
@@ -141,8 +152,8 @@ class DialoguePeripherique(QDialog):
         for t, lib in LIBELLES.items():          # tous les types pour toutes les radios, base comprise
             self.cb_type.addItem(lib, t)
         self.ed_nom = QLineEdit()
-        self.ed_nom.setMaxLength(16)
-        self.ed_nom.setValidator(QRegularExpressionValidator(QRegularExpression(r'[A-Za-z0-9_]{0,16}'), self))
+        self.ed_nom.setMaxLength(15)
+        self.ed_nom.setValidator(QRegularExpressionValidator(QRegularExpression(r'[A-Za-z0-9_]{0,15}'), self))
         self.ed_nom.textEdited.connect(self._nom_edite)
 
         haut = QFormLayout()
@@ -210,6 +221,10 @@ class DialoguePeripherique(QDialog):
             return self._unique(f"DI{self.champs['di0'].currentData()}")
         if t == 'SORTIE':
             return self._unique(f"DO{self.champs['do'].currentData()}")
+        if t == 'ENTREE_ANA':
+            return self._unique(f"AI{self.champs['ai'].currentData()}")
+        if t == 'SORTIE_ANA':
+            return self._unique(f"AO{self.champs['ao'].currentData()}")
         return self._unique(NOM_FIXE.get(t, t))
 
     def _proposer_nom(self):
@@ -289,6 +304,23 @@ class DialoguePeripherique(QDialog):
             cb = self._combo('Entrée analogique', 'ai', 'AI', AI, self.occ_ai)
             choisir(cb, p.get('ai') if p else premier_libre(AI, self.occ_ai))
             self._champs_radar(p)
+        elif t == 'ENTREE_ANA':
+            mode = QComboBox()
+            for k, (lib, *_r) in MODES_ANA.items():
+                mode.addItem(lib, k)
+            choisir(mode, p.get('mode', 'courant') if p else 'courant')
+            self.form.addRow('Mode', mode)
+            self.champs['mode'] = mode
+            cb = self._combo('Entrée', 'ai', 'AI', [], {})
+            self._entrees_ana(p.get('ai') if p else None)
+            mode.currentIndexChanged.connect(lambda _: self._mode_ana_modifie())
+            cb.currentIndexChanged.connect(lambda _: self._proposer_nom())
+            self._champs_echelle_ana(p)
+        elif t == 'SORTIE_ANA':
+            cb = self._combo('Sortie', 'ao', 'AO', [1, 2], self.occ_ao)
+            choisir(cb, p.get('ao') if p else premier_libre([1, 2], self.occ_ao))
+            cb.currentIndexChanged.connect(lambda _: self._proposer_nom())
+            self._champs_echelle_ana(p)
         if p is None:
             self._proposer_nom()
 
@@ -367,6 +399,42 @@ class DialoguePeripherique(QDialog):
             ma = valeur * 16.0 / abs(ech['mesure_20ma'] - ech['mesure_4ma'])
         self._ma[cle] = round(ma, 2)
 
+    # ---------------------------------------------------------------- entrée / sortie analogique
+    def _entrees_ana(self, ai=None):
+        """Liste des AI selon le mode (AI1-AI4 en courant, AI3-AI4 en tension) ; garde `ai` si proposée."""
+        cb = self.champs['ai']
+        valeurs = MODES_ANA[self.champs['mode'].currentData()][1]
+        cb.blockSignals(True)
+        remplir_combo(cb, 'AI', valeurs, self.occ_ai)
+        choisir(cb, ai if ai in valeurs else premier_libre(valeurs, self.occ_ai))
+        cb.blockSignals(False)
+
+    def _mode_ana_modifie(self):
+        self._entrees_ana(self.champs['ai'].currentData())
+        bas, haut = MODES_ANA[self.champs['mode'].currentData()][2]
+        self.form.labelForField(self.champs['mesure_bas']).setText(bas)
+        self.form.labelForField(self.champs['mesure_haut']).setText(haut)
+        self._proposer_nom()
+
+    def _champs_echelle_ana(self, p):
+        """Échelle facultative (décochée par défaut) : valeur basse, valeur haute, unité. Aucun seuil."""
+        avec = bool(p) and p.get('mesure_haut') is not None
+        ck = QCheckBox(); ck.setChecked(avec)
+        self.form.addRow('Échelle', ck)
+        self.champs['echelle'] = ck
+        mode = self.champs['mode'].currentData() if 'mode' in self.champs else 'courant'
+        for cle, lib, defaut in zip(('mesure_bas', 'mesure_haut'), MODES_ANA[mode][2], (0.0, 100.0)):
+            self._spin(lib, cle, -99999.0, 99999.0, 1.0, float(p.get(cle, defaut)) if avec else defaut)
+        ed = QLineEdit(p.get('unite', '') if avec else ''); ed.setMaxLength(8)
+        self.form.addRow('Unité', ed)
+        self.champs['unite'] = ed
+
+        def activer(v):
+            for cle in ('mesure_bas', 'mesure_haut', 'unite'):
+                self.champs[cle].setEnabled(v)
+        ck.toggled.connect(activer)
+        activer(avec)
+
     def _suite_lidar(self, n):
         d = self.champs['premiere'].currentData()
         for k in range(n):
@@ -394,6 +462,15 @@ class DialoguePeripherique(QDialog):
             ech = self._echelle()
             if ech is not None:         # case décochée : les 3 clés d'échelle sont absentes
                 p.update(ech)
+        elif t in ('ENTREE_ANA', 'SORTIE_ANA'):
+            if t == 'ENTREE_ANA':
+                p.update(ai=c['ai'].currentData(), mode=c['mode'].currentData())
+            else:
+                p['ao'] = c['ao'].currentData()
+            if c['echelle'].isChecked():  # case décochée : mesure_bas, mesure_haut et unite absentes
+                mesure = lambda v: int(v) if float(v).is_integer() else v
+                p.update(mesure_bas=mesure(c['mesure_bas'].value()), mesure_haut=mesure(c['mesure_haut'].value()),
+                         unite=c['unite'].text())
         return p
 
 

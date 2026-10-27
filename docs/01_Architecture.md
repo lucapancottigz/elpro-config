@@ -45,7 +45,9 @@ import elpro_engine as M, views as V, export_excel as XL, export_pdf as PDF
 erreurs = M.valider(projet)                 # list[str] ; vide = valide
 plan    = M.calculer_plan(projet)           # dict ; lève ValueError si projet invalide
 M.ecrire_cdb(plan, chemin)                  # écrit le .cdb (UTF-16, prêt pour CConfig)
-M.ecrire_sconf(plan['stations'][i]['iop'], chemin)   # écrit un .sconf (seulement si iop n'est pas None)
+M.ecrire_sconf_tous(plan, dossier)          # écrit les .sconf (_ACTIVE ou _DESACTIVE selon l'option IO Plus)
+M.ecrire_xml_radios(plan, dossier)          # écrit le XML de chaque radio ; renvoie la liste des chemins
+M.ioplus_actif(plan)                        # option systeme.ioplus_actif (absente = False)
 noeuds  = V.vue_page2(plan)                 # contenu de la page 2
 XL.ecrire_excel(V.donnees_excel(plan), chemin, plan['systeme']['nom_projet'])
 PDF.ecrire_pdf(V.donnees_pdf(plan), chemin, plan['systeme']['nom_projet'])
@@ -64,7 +66,7 @@ Page 1 (saisie) ──► projet (dict) ──► [Générer] ──► M.valide
                                                 M.calculer_plan() ──► plan (gardé en mémoire)
                                                       ▼
                                    Page 2 affiche V.vue_page2(plan) (lecture seule)
-                                   Boutons : .cdb / .sconf / PDF / Excel
+                                   Boutons : .cdb / .sconf / XML des radios / PDF / Excel
 ```
 
 - Toute modification en page 1 après une génération **efface le plan** et **vide la page 2** (bandeau « Configuration modifiée : cliquer sur Générer »). Les boutons d'export sont alors grisés.
@@ -108,6 +110,7 @@ Livrer le dossier `dist\ELPRO Config\` complet (zip). Ne pas utiliser `--onefile
 |---|---|---|---|
 | Projet de l'application | `.elpro.json` | UTF-8, indenté 2 espaces | l'interface (`json.dump(projet, f, ensure_ascii=False, indent=2)`) |
 | Config CConfig | `.cdb` | UTF-16 LE + BOM, CRLF | `M.ecrire_cdb` |
-| Logique IO Plus | `.sconf` | tar.gz | `M.ecrire_sconf` |
+| Logique IO Plus | `.sconf` | tar.gz | `M.ecrire_sconf_tous` |
+| Configuration d'une radio | `.xml` | UTF-8 | `M.ecrire_xml_radios` |
 | Compte rendu | `.pdf` | — | `export_pdf.ecrire_pdf` |
 | Liste d'adresses | `.xlsx` | — | `export_excel.ecrire_excel` |

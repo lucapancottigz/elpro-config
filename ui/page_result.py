@@ -29,6 +29,10 @@ class PageResult(QWidget):
         self.bandeau.setStyleSheet('background:#FFF4CE; color:#7A5800; border:1px solid #E6C35C; padding:6px; font-weight:bold;')
         self.bandeau.hide()
         lay.addWidget(self.bandeau)
+        self.lb_ioplus = QLabel('IO Plus : activé')
+        self.lb_ioplus.setStyleSheet('color:#E67E00; font-weight:bold;')
+        self.lb_ioplus.hide()
+        lay.addWidget(self.lb_ioplus)
 
         self.pile = QStackedWidget()
         vide = QLabel(MSG_VIDE); vide.setAlignment(Qt.AlignCenter); vide.setWordWrap(True)
@@ -52,7 +56,7 @@ class PageResult(QWidget):
         b = QHBoxLayout()
         self.boutons = []
         for texte, action in (('Générer le .cdb', self._export_cdb), ('Générer les .sconf', self._export_sconf),
-                              ('Compte rendu PDF', self._export_pdf), ("Liste d'adresses Excel", self._export_excel)):
+                              ('Générer les XML des radios', self._export_xml), ('Compte rendu PDF', self._export_pdf), ("Liste d'adresses Excel", self._export_excel)):
             bt = QPushButton(texte); bt.setMinimumHeight(30); bt.clicked.connect(action)
             b.addWidget(bt); self.boutons.append(bt)
         b.addStretch(1)
@@ -67,12 +71,14 @@ class PageResult(QWidget):
         self.noeuds = {}
         self.pile.setCurrentIndex(0)
         self.bandeau.setVisible(modifiee)
+        self.lb_ioplus.hide()
         for bt in self.boutons:
             bt.setEnabled(False)
 
     def afficher(self, plan):
         self.plan = plan
         self.bandeau.hide()
+        self.lb_ioplus.setVisible(M.ioplus_actif(plan))
         self.arbre.blockSignals(True)
         self.arbre.clear()
         self.noeuds = {}
@@ -213,21 +219,29 @@ class PageResult(QWidget):
         self._enregistrer('_Adresses.xlsx', 'Excel (*.xlsx)',
                           lambda c: XL.ecrire_excel(V.donnees_excel(self.plan), c, self._titre()))
 
-    def _export_sconf(self):
+    def _export_dossier(self, ecrire, suite=''):
+        """Choix d'un dossier, écriture de plusieurs fichiers par `ecrire(plan, dossier)`, liste des fichiers créés."""
         if self.plan is None:
             return
         dossier = QFileDialog.getExistingDirectory(self, 'Choisir un dossier', self._dossier())
         if not dossier:
             return
-        crees = []
-        v = self.plan['version_config']
         try:
-            for S in self.plan['stations']:
-                if S['iop']:
-                    crees.append(M.ecrire_sconf(S['iop'], os.path.join(dossier, f"IOPlus_{S['nom']}_V{v}_DESACTIVE.sconf")))
+            crees = ecrire(self.plan, dossier)
         except Exception as e:
             self._echec(e)
             return
         self._memoriser(dossier)
         liste = '\n'.join(f'  • {os.path.basename(c)}' for c in crees)
-        self._succes(f'Fichiers créés dans {os.path.normpath(dossier)} :\n{liste}', dossier)
+        self._succes(f'Fichiers créés dans {os.path.normpath(dossier)} :\n{liste}{suite}', dossier)
+
+    def _export_sconf(self):
+        self._export_dossier(M.ecrire_sconf_tous)
+
+    def _export_xml(self):
+        if self.plan is None:
+            return
+        etat = 'activé' if M.ioplus_actif(self.plan) else 'désactivé'
+        self._export_dossier(M.ecrire_xml_radios,
+                             f"\n\nIO Plus : {etat}\nSur la base, régler à la main Scan Rate {M.LOG_REGLAGES['Scan Rate']} et "
+                             f"Records per File {M.LOG_REGLAGES['Records per File']} (page Datalog).")

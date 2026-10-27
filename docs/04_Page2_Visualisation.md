@@ -2,7 +2,7 @@
 
 Onglet « 2. Configuration générée ». **Lecture seule.** Il présente le résultat comme le logiciel ELPRO CConfig (arbre à gauche, détail à droite) et permet d'exporter les fichiers.
 
-Tant qu'aucun plan n'existe (pas encore généré, ou page 1 modifiée depuis) : afficher au centre « Aucune configuration générée. Remplir la page 1 puis cliquer sur Générer la configuration. » et griser les 4 boutons.
+Tant qu'aucun plan n'existe (pas encore généré, ou page 1 modifiée depuis) : afficher au centre « Aucune configuration générée. Remplir la page 1 puis cliquer sur Générer la configuration. » et griser les 5 boutons.
 
 ## Disposition
 
@@ -17,7 +17,7 @@ Tant qu'aucun plan n'existe (pas encore généré, ou page 1 modifiée depuis) :
 │          Time Server │                                                       │
 │        RS232 …       │                                                       │
 ├──────────────────────┴───────────────────────────────────────────────────────┤
-│ [Générer le .cdb] [Générer les .sconf] [Compte rendu PDF] [Liste d'adresses Excel] │
+│ [Générer le .cdb] [Générer les .sconf] [Générer les XML des radios] [Compte rendu PDF] [Liste d'adresses Excel] │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,11 +45,14 @@ Tous ouvrent une boîte « Enregistrer sous » / « Choisir un dossier » qui pr
 | Bouton | Dialogue | Nom proposé | Appel |
 |---|---|---|---|
 | Générer le .cdb | Enregistrer sous, filtre `*.cdb` | `M.base_nom_fichier(plan) + '.cdb'` (ex. `Demo_Site_A_V2.1.cdb`) | `M.ecrire_cdb(plan, chemin)` |
-| Générer les .sconf | Choisir un dossier | un fichier par radio ayant `S['iop']` non vide : `IOPlus_<nom radio>_V<version>_DESACTIVE.sconf` (ex. `IOPlus_A-BASE_V2.1_DESACTIVE.sconf`) | pour chaque `S` de `plan['stations']` avec `S['iop']` : `M.ecrire_sconf(S['iop'], os.path.join(dossier, nom))`. Afficher ensuite la liste des fichiers créés. La base en a toujours un ; une remote/un repeater seulement s'il a un radar. |
+| Générer les .sconf | Choisir un dossier | un fichier par radio ayant `S['iop']` non vide : `IOPlus_<nom radio>_V<version>_DESACTIVE.sconf`, ou `_ACTIVE.sconf` si l'option IO Plus est cochée (`M.nom_fichier_sconf(plan, S)`) | `M.ecrire_sconf_tous(plan, dossier)`. Afficher ensuite la liste des fichiers créés. La base en a toujours un ; une remote/un repeater seulement s'il a un radar. |
+| Générer les XML des radios | Choisir un dossier | un fichier par radio : `<nom_projet>_V<version>_<radio>.xml` (`M.nom_fichier_xml(plan, S)`) | `M.ecrire_xml_radios(plan, dossier)`. Message : liste des fichiers créés, « IO Plus : activé » ou « IO Plus : désactivé », et « Sur la base, régler à la main Scan Rate 30 et Records per File 2880 (page Datalog). » |
 | Compte rendu PDF | Enregistrer sous, `*.pdf` | `M.base_nom_fichier(plan) + '_Compte_rendu.pdf'` | `PDF.ecrire_pdf(V.donnees_pdf(plan), chemin, f"{plan['systeme']['nom_projet']} — V{plan['version_config']}")` |
 | Liste d'adresses Excel | Enregistrer sous, `*.xlsx` | `M.base_nom_fichier(plan) + '_Adresses.xlsx'` | `XL.ecrire_excel(V.donnees_excel(plan), chemin, f"{plan['systeme']['nom_projet']} — V{plan['version_config']}")` |
 
 Si l'écriture échoue (fichier ouvert dans Excel, droits…) : afficher le message de l'exception, ne rien faire d'autre.
+
+Quand l'option « IO Plus activé dans les fichiers générés » est cochée (`M.ioplus_actif(plan)`), la page 2 affiche « IO Plus : activé » en orange au-dessus de l'arbre.
 
 ## Contenu des exports (déjà produit par le moteur — pour information)
 

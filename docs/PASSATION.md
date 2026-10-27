@@ -11,7 +11,7 @@ Document de reprise pour le nouveau programmeur. À lire en entier avant toute m
 | Élément | Valeur |
 |---|---|
 | Dépôt | `lucapancottigz/elpro-config` (**public**) |
-| Dernière version publiée | **1.4.0** (moteur de règles v1.9) |
+| Dernière version publiée | **1.5.0** (moteur de règles v2.2) |
 | Langage / interface | Python 3.11+ / PySide6 |
 | Distribution | Installateur Inno Setup publié dans les Releases GitHub |
 | Licence | Propriétaire : « © 2026 Geoazimut SàRL. Tous droits réservés. », geoazimut.com (fichier `LICENSE`) |
@@ -37,8 +37,8 @@ Circuit d'une version : besoin du propriétaire → complément de l'ingénieur 
 2. **Aucune règle métier dans l'interface.** Elle saisit, appelle le moteur, affiche. Les messages d'erreur viennent de `elpro_engine.valider()`.
 3. **Aucune donnée réelle dans le dépôt**, qui est public : ni nom de client ou de site, ni clé de chiffrement, ni plan IP réel, ni `.elpro.json` ou `.cdb` de site. Seuls les exemples fictifs (`demo_site_A`, `demo_site_B`) y figurent.
 4. **Noms de fichiers et dossiers de code en anglais** ; **commentaires, docstrings, documentation et interface en français**.
-5. **Les fichiers produits pour l'utilisateur gardent des noms français** : `_Compte_rendu.pdf`, `_Adresses.xlsx`, `IOPlus_<radio>_V<x.y>_DESACTIVE.sconf`, `.elpro.json`. Les accents sont retirés des noms de fichiers.
-6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 26 tests … OK`**. `build.bat` le vérifie aussi.
+5. **Les fichiers produits pour l'utilisateur gardent des noms français** : `_Compte_rendu.pdf`, `_Adresses.xlsx`, `IOPlus_<radio>_V<x.y>_DESACTIVE.sconf` (ou `_ACTIVE`), `<projet>_V<x.y>_<radio>.xml`, `.elpro.json`. Les accents sont retirés des noms de fichiers.
+6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 35 tests … OK`**. `build.bat` le vérifie aussi.
 7. Installateur : ne change ni l'**`AppId`** ni **`AppPublisher` = `GeoAzimut`**, sinon une mise à jour s'installe à côté de l'ancienne version au lieu de la remplacer.
 8. Mentions de copyright présentes partout : fenêtre « À propos », barre d'état, propriétés de l'exécutable, installateur (page de licence), PDF et Excel.
 
@@ -54,9 +54,9 @@ elpro-config/
 │  ├─ elpro_engine.py     ← moteur de règles (NE PAS MODIFIER)
 │  ├─ views.py            ← données prêtes à afficher (NE PAS MODIFIER)
 │  ├─ export_excel.py, export_pdf.py   ← mise en forme seulement
-├─ resources/             ← gabarits XML validés dans CConfig, police du PDF, icône
+├─ resources/             ← gabarits XML validés dans CConfig, radio_template.xml (XML de chaque radio), police du PDF, icône
 ├─ examples/              ← demo_site_A/B.json + expected_*.json
-├─ tests/                 ← tests du moteur (26)
+├─ tests/                 ← tests du moteur (35)
 ├─ installer/             ← elpro_config.iss (Inno Setup, UTF-8 avec BOM) + génération de la ressource de version
 └─ docs/                  ← 00_LISEZMOI … 05_Recette (dossier de réalisation)
 ```
@@ -82,7 +82,7 @@ Ces signatures sont indicatives : `docs/01_Architecture.md` et le code font foi.
 
 **Les deux pages de l'application :**
 - **Page 1 (Configuration)** : système, liste des radios, radio sélectionnée, périphériques, bouton « Générer ».
-- **Page 2 (Visualisation)** : arbre présenté comme dans CConfig, en lecture seule, avec les exports `.cdb`, `.sconf`, PDF et Excel.
+- **Page 2 (Visualisation)** : arbre présenté comme dans CConfig, en lecture seule, avec les exports `.cdb`, `.sconf`, XML des radios, PDF et Excel.
 
 Toute modification en page 1 efface le plan et grise les exports.
 
@@ -95,17 +95,19 @@ Toute modification en page 1 efface le plan et grise les exports.
 **Topologie et communication**
 - **Topologie :** une base, la centrale d'alarme, et jusqu'à 17 radios, remotes et repeaters, en mode Fixed Links. Réseau local 192.168.1.0/24, base en `.100`.
 - **Polling :** la base interroge chaque remote dans des créneaux de **22 s**. Un cycle dure T = nombre de créneaux × 22 s.
-- **IO Plus de la base :** pour chaque remote, comflag = (toutes ses lectures ont échoué) OU (l'envoi des commandes a échoué). Le `.sconf` (tar.gz contenant `Logic.conf` et `Logic.version`) est **toujours livré désactivé** (`Enabled 0`) : le propriétaire l'active à la main.
+- **IO Plus de la base :** pour chaque remote, comflag = (toutes ses lectures ont échoué) OU (l'envoi des commandes a échoué). Le `.sconf` (tar.gz contenant `Logic.conf` et `Logic.version`) est **livré désactivé** par défaut (`Enabled 0`) : le propriétaire l'active à la main. L'option du projet « IO Plus activé dans les fichiers générés » (`systeme.ioplus_actif`) le livre activé dans les `.sconf` et les XML.
 - **Fail-safe :** commandes 401 × 50.
 
 **Plan de registres de la base**
 - Détections : 150nn.
 - Comflags : 151xx, où xx est le numéro de la radio (01 = base).
-- Échecs : 152xx (BATTV), 153xx (RSSI), 154xx (détections), 155xx (commandes), 156xx (MAINV), 157xx (radar). Ces registres sont utilisés par les mappings et l'IO Plus, mais **ne figurent pas dans la liste des registres** affichée.
+- Échecs : 152xx (BATTV), 153xx (RSSI), 154xx (détections), 155xx (commandes), 156xx (MAINV), 157xx (radar), 158xx (entrées analogiques). Ces registres sont utilisés par les mappings et l'IO Plus, mais **ne figurent pas dans la liste des registres** affichée.
 - MAINV (secteur) : 105xx.
 - Tension batterie : 305xx, avec 8192 = 0 V et 49152 = 40 V.
 - RSSI : 351xx, avec la valeur 0..150 = 0..−150 dBm.
 - Radars : 352nn, valeur brute de 16384 (4 mA) à 49152 (20 mA).
+- Entrées analogiques génériques : 353nn (35301–35350), valeur brute 16384–49152 en courant (4–20 mA), 8192–49152 en tension (0–5 V). Échec de lecture : 158xx (non listé, comme les autres registres d'échec).
+- Consignes de sortie analogique : 450nn (45001–45020), écrites par la supervision et recopiées vers l'AO de la radio (16384 = 4 mA, 49152 = 20 mA).
 - Commandes :
 
 | Registres | Commande |
@@ -119,10 +121,11 @@ Toute modification en page 1 efface le plan et grise les exports.
 **Périphériques**
 - **Feu :** 4 sorties, avec les clés JSON `do_rouge` (obligatoire), `do_orange_cli` et `do_orange_fixe` (au moins un orange), `do_vert`. L'ancien `do_orange` est converti en `do_orange_cli` par `normaliser_projet`.
 - **Radar :** échelle facultative `mesure_4ma`, `mesure_20ma` et `unite` (cm par défaut). Les seuils sont stockés en mA.
+- **Entrée analogique** (`ENTREE_ANA`, mesure seule, sans alarme) : AI1–AI4 en courant, AI3–AI4 en tension, échelle facultative `mesure_bas`, `mesure_haut`, `unite`. Une AI sert soit à un radar, soit à une entrée analogique. **Sortie analogique** (`SORTIE_ANA`) : AO1–AO2, 4-20 mA, même échelle facultative.
 - **Base :** elle accepte n'importe quel périphérique. Un radar sur la base est copié en local (30000 + AI) vers 352nn.
 
 **Noms et tableau de bord**
-- **Noms des registres et du tableau de bord :** **16 caractères au maximum** et uniques (`nom_court`). Au-delà, la radio affiche « DIn1 » ou « DOut5 » à la place du nom.
+- **Noms des registres et du tableau de bord :** **15 caractères au maximum** et uniques (`nom_court`). Au-delà, la radio affiche « DIn1 » ou « DOut5 » à la place du nom (constaté sur radio : un tag de 16 caractères est remplacé par DIn1, DOut5…).
 - **Tableau de bord de la base :** toutes les alarmes et tous les radars, une commande de chaque type, tous les BATTV, MAINV, RSSI et comflags. Il est limité à **50 éléments** : au-delà, les RSSI sont retirés et un avertissement est ajouté.
 
 **Version de configuration** (dans le `.elpro.json`)
@@ -170,6 +173,7 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 | 1.2.0 | Registres d'échec retirés de la liste des registres, renumérotation des commandes (vert en 441–450) |
 | 1.3.0 | Noms de 16 caractères au maximum, radar en unité physique (cm), tableau de bord de la base limité à 50 éléments |
 | 1.4.0 | Corrections de la relecture : `\` accepté dans les textes, maximum 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans les textes |
+| 1.5.0 | Entrée analogique (mesure, courant ou tension) et sortie analogique 4-20 mA génériques ; XML de chaque radio (IO Plus et datalog de la base) ; option IO Plus activé / désactivé |
 
 `CHANGELOG.md` fait foi.
 
@@ -177,7 +181,7 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 
 ## 8. Chantiers ouverts
 
-1. **Générer directement le XML de chaque radio**, au lieu du `.cdb` pour CConfig. C'est en attente d'une radio de banc chez le propriétaire. CConfig n'est pas fiable : il lui arrive d'annoncer « programmé » alors que la radio ne l'est pas. L'export XML d'une radio (racine `<group name="E2Config">`) contient toute sa configuration :
+1. **Générer directement le XML de chaque radio**, au lieu du `.cdb` pour CConfig. **Fait en 1.5.0 (moteur v2.1)** : un XML par radio, IO Plus et datalog de la base compris ; reste à le valider sur la radio de banc. C'est en attente d'une radio de banc chez le propriétaire. CConfig n'est pas fiable : il lui arrive d'annoncer « programmé » alors que la radio ne l'est pas. L'export XML d'une radio (racine `<group name="E2Config">`) contient toute sa configuration :
    - réseau et identification ;
    - noms des E/S (`IOUsrCfg`) et mappings (`ELPROMesh`) ;
    - `FailSafe` et tableau de bord (`HMI`) ;
@@ -189,7 +193,7 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
    - écrire le générateur.
 
    Bonus prévu : une **vérification**, qui compare l'export lu sur la radio au XML attendu.
-2. **Activer automatiquement le log de la centrale (DataLog).** Il n'est configurable ni dans le `.cdb` ni dans CConfig, mais il figure dans le XML de la radio. C'est lié au point 1. Liste standard actuelle, configurée à la main : 16 entrées, **Scan Rate 30, Records per File 2880** (voir `docs/` d'ELPRO Logs).
+2. **Activer automatiquement le log de la centrale (DataLog).** **Fait en 1.5.0** : la liste est écrite dans le XML de la base ; Scan Rate et Records per File restent à régler à la main. Il n'est configurable ni dans le `.cdb` ni dans CConfig, mais il figure dans le XML de la radio. C'est lié au point 1. Liste standard actuelle, configurée à la main : 16 entrées, **Scan Rate 30, Records per File 2880** (voir `docs/` d'ELPRO Logs).
 3. Remontée des « 15501 » et autres registres d'échec de la base dans l'interface : aucun besoin exprimé pour l'instant.
 
 ---
@@ -197,6 +201,6 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 ## 9. Pour démarrer
 
 1. Clone le dépôt et lis `docs/00_LISEZMOI.md` à `docs/05_Recette.md`, puis `CHANGELOG.md`.
-2. Crée le venv et lance les tests : `Ran 26 tests … OK`.
+2. Crée le venv et lance les tests : `Ran 35 tests … OK`.
 3. Lance l'application et ouvre `examples/demo_site_B.json`, puis Générer : la page 2 se remplit.
 4. Attends le prochain complément de l'ingénieur. Ne prends pas d'initiative sur les règles radio.
