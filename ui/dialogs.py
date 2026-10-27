@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QRegularExpression
 from PySide6.QtGui import QStandardItemModel, QStandardItem, QRegularExpressionValidator, QPixmap
 from PySide6.QtWidgets import (QDialog, QFormLayout, QVBoxLayout, QComboBox, QLineEdit, QDoubleSpinBox,
                                QSpinBox, QDialogButtonBox, QWidget, QLabel, QHBoxLayout, QPushButton,
-                               QPlainTextEdit, QMessageBox, QCheckBox)
+                               QPlainTextEdit, QMessageBox, QCheckBox, QToolButton)
 
 import elpro_engine as M
 from version import APP_VERSION, APP_COPYRIGHT, APP_WEBSITE
@@ -47,6 +47,8 @@ ECHELLE_DEFAUT = {'mesure_4ma': 0.0, 'mesure_20ma': 1000.0, 'unite': 'cm'}
 # Entrée analogique : (libellé du mode, entrées proposées, libellés des valeurs d'échelle, texte de câblage)
 MODES_ANA = {'courant': ('Courant 0-20 mA', [1, 2, 3, 4], ('Valeur à 4 mA', 'Valeur à 20 mA'), '0-20 mA'),
              'tension': ('Tension 0-5 V', [3, 4], ('Valeur à 0 V', 'Valeur à 5 V'), '0-5 V')}
+# Valeur haute proposée pour l'étalonnage d'une entrée analogique (5 V en tension, 20 mA en courant)
+ETALONNAGE_HAUT = {'courant': 20.0, 'tension': 5.0}
 NOM_FIXE = {'LIDAR3': 'LIDAR', 'LIDAR6': 'LIDAR', 'ALARME_BT': 'BT_ALARME', 'SIRENE': 'SIRENE', 'FLASH': 'FLASH',
             'SIRENE_FLASH': 'SIRENE_FLASH', 'CAMERA': 'CAM', 'SPOT': 'SPOT', 'CAMERA_SPOT': 'CAM'}
 
@@ -82,6 +84,8 @@ def texte_cablage(p):
     if t in SORTIES_SIMPLES:
         return f"DO{p.get('do')}"
     if t == 'ENTREE_ANA':
+        if p.get('etalonnage'):
+            return f"AI{p.get('ai')} — {p.get('mode', 'courant')}, étalonnage"
         return f"AI{p.get('ai')} — {MODES_ANA.get(p.get('mode', 'courant'), MODES_ANA['courant'])[3]}"
     if t == 'SORTIE_ANA':
         return f"AO{p.get('ao')}"
@@ -239,7 +243,7 @@ class DialoguePeripherique(QDialog):
         self.champs[cle] = cb
         return cb
 
-    def _spin(self, libelle, cle, mini, maxi, pas, defaut, decimales=1, suffixe=''):
+    def _spin(self, libelle, cle, mini, maxi, pas, defaut, decimales=1, suffixe='', form=None):
         if decimales:
             sp = QDoubleSpinBox(); sp.setDecimals(decimales); sp.setSingleStep(pas)
         else:
@@ -247,7 +251,7 @@ class DialoguePeripherique(QDialog):
         sp.setRange(mini, maxi)
         sp.setValue(defaut)
         sp.setSuffix(suffixe)
-        self.form.addRow(libelle, sp)
+        (form or self.form).addRow(libelle, sp)
         self.champs[cle] = sp
         return sp
 
@@ -316,6 +320,7 @@ class DialoguePeripherique(QDialog):
             mode.currentIndexChanged.connect(lambda _: self._mode_ana_modifie())
             cb.currentIndexChanged.connect(lambda _: self._proposer_nom())
             self._champs_echelle_ana(p)
+            self._reglages_avances_ana(p)
         elif t == 'SORTIE_ANA':
             cb = self._combo('Sortie', 'ao', 'AO', [1, 2], self.occ_ao)
             choisir(cb, p.get('ao') if p else premier_libre([1, 2], self.occ_ao))
@@ -414,6 +419,8 @@ class DialoguePeripherique(QDialog):
         bas, haut = MODES_ANA[self.champs['mode'].currentData()][2]
         self.form.labelForField(self.champs['mesure_bas']).setText(bas)
         self.form.labelForField(self.champs['mesure_haut']).setText(haut)
+        if not self.champs['etalonnage'].isChecked():
+            self.champs['eng_haut'].setValue(ETALONNAGE_HAUT[self.champs['mode'].currentData()])
         self._proposer_nom()
 
     def _champs_echelle_ana(self, p):
@@ -429,11 +436,88 @@ class DialoguePeripherique(QDialog):
         self.form.addRow('Unité', ed)
         self.champs['unite'] = ed
 
-        def activer(v):
-            for cle in ('mesure_bas', 'mesure_haut', 'unite'):
-                self.champs[cle].setEnabled(v)
-        ck.toggled.connect(activer)
-        activer(avec)
+        ck.toggled.connect(self._etats_ana)
+        self._etats_ana()
+
+    def _etats_ana(self, *_):
+        """Champs actifs : l'étalonnage remplace l'échelle (case grisée) mais garde l'unité."""
+        c = self.champs
+        et = 'etalonnage' in c and c['etalonnage'].isChecked()
+        if et:
+            c['echelle'].setChecked(False)
+        c['echelle'].setEnabled(not et)
+        for cle in ('mesure_bas', 'mesure_haut'):
+            c[cle].setEnabled(c['echelle'].isChecked())
+        c['unite'].setEnabled(c['echelle'].isChecked() or et)
+        if 'etalonnage' not in c:
+            return
+        for cle in ('reg_bas', 'reg_haut', 'eng_bas', 'eng_haut'):
+            c[cle].setEnabled(et)
+        for cle in ('al_bas', 'al_haut', 'fenetre'):
+            c[cle].setEnabled(c['alarme_radio'].isChecked())
+        self._span_ana()
+
+    def _reglages_avances_ana(self, p):
+        """Groupe repliable « Réglages avancés de la radio » : étalonnage (Zero/Span) et seuils d'alarme de l'E/S.
+        Replié par défaut, déplié si le périphérique a déjà ces réglages ; case décochée = clé absente du JSON."""
+        p = p or {}
+        et, al = p.get('etalonnage') or {}, p.get('alarme_radio') or {}
+        bt = QToolButton(); bt.setText('Réglages avancés de la radio'); bt.setCheckable(True)
+        bt.setToolButtonStyle(Qt.ToolButtonTextBesideIcon); bt.setAutoRaise(True)
+        zone = QWidget(); form = QFormLayout(zone); form.setContentsMargins(16, 0, 0, 0)
+        self.form.addRow(bt)
+        self.form.addRow(zone)
+        self.champs['avances'] = bt
+
+        ck = QCheckBox(); ck.setChecked(bool(et)); form.addRow('Étalonnage', ck)
+        self.champs['etalonnage'] = ck
+        mode = self.champs['mode'].currentData()
+        for cle, lib, defaut in (('reg_bas', 'Registre bas', 8192), ('reg_haut', 'Registre haut', 49152)):
+            self._spin(lib, cle, 0, 65535, 1, int(et.get(cle, defaut)), decimales=0, form=form)
+        for cle, lib, defaut in (('eng_bas', 'Valeur basse', 0.0), ('eng_haut', 'Valeur haute', ETALONNAGE_HAUT[mode])):
+            self._spin(lib, cle, -99999.0, 99999.0, 1.0, float(et.get(cle, defaut)), decimales=3, form=form)
+        span = QLabel(); form.addRow(span)
+        self.champs['span'] = span
+        if et:
+            self.champs['unite'].setText(p.get('unite', 'V'))
+
+        ck_al = QCheckBox(); ck_al.setChecked(bool(al)); form.addRow('Alarme de la radio', ck_al)
+        self.champs['alarme_radio'] = ck_al
+        self._spin('Seuil bas', 'al_bas', -99999.0, 99999.0, 0.1, float(al.get('bas', 0.0)), decimales=3, form=form)
+        self._spin('Seuil haut', 'al_haut', -99999.0, 99999.0, 0.1, float(al.get('haut', 0.0)), decimales=3, form=form)
+        fen = QCheckBox(); fen.setChecked(bool(al.get('fenetre', 0))); form.addRow('Fenêtre', fen)
+        self.champs['fenetre'] = fen
+
+        def deplier(v):
+            bt.setArrowType(Qt.DownArrow if v else Qt.RightArrow)
+            zone.setVisible(v)
+            self.adjustSize()
+        bt.toggled.connect(deplier)
+        bt.setChecked(bool(et or al))
+        deplier(bt.isChecked())
+
+        def etalonnage_coche(v):
+            if v and not self.champs['unite'].text():
+                self.champs['unite'].setText('V')
+            self._etats_ana()
+        ck.toggled.connect(etalonnage_coche)
+        ck_al.toggled.connect(self._etats_ana)
+        for cle in ('reg_bas', 'reg_haut', 'eng_bas', 'eng_haut'):
+            self.champs[cle].valueChanged.connect(self._span_ana)
+        self._etats_ana()
+
+    def _etalonnage(self):
+        c = self.champs
+        mesure = lambda v: int(v) if float(v).is_integer() else v
+        return {'reg_bas': c['reg_bas'].value(), 'reg_haut': c['reg_haut'].value(),
+                'eng_bas': mesure(c['eng_bas'].value()), 'eng_haut': mesure(c['eng_haut'].value())}
+
+    def _span_ana(self, *_):
+        """Span de la radio, calculé par le moteur (lecture seule)."""
+        et = self._etalonnage()
+        span = M.reglages_ai({'etalonnage': et})['Span'].replace('.', ',') if et['eng_haut'] != et['eng_bas'] else '—'
+        self.champs['span'].setText(f'Span calculé : {span}')
+        self.champs['span'].setEnabled(self.champs['etalonnage'].isChecked())
 
     def _suite_lidar(self, n):
         d = self.champs['premiere'].currentData()
@@ -471,6 +555,12 @@ class DialoguePeripherique(QDialog):
                 mesure = lambda v: int(v) if float(v).is_integer() else v
                 p.update(mesure_bas=mesure(c['mesure_bas'].value()), mesure_haut=mesure(c['mesure_haut'].value()),
                          unite=c['unite'].text())
+            if t == 'ENTREE_ANA' and c['etalonnage'].isChecked():
+                p.update(etalonnage=self._etalonnage(), unite=c['unite'].text())
+            if t == 'ENTREE_ANA' and c['alarme_radio'].isChecked():
+                mesure = lambda v: int(v) if float(v).is_integer() else v
+                p['alarme_radio'] = {'bas': mesure(c['al_bas'].value()), 'haut': mesure(c['al_haut'].value()),
+                                     'fenetre': int(c['fenetre'].isChecked())}
         return p
 
 

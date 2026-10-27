@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
-Moteur de génération ELPRO GeoAzimut (v2.2) — IMPLÉMENTATION DE RÉFÉRENCE.
+Moteur de génération ELPRO GeoAzimut (v2.3) — IMPLÉMENTATION DE RÉFÉRENCE.
 
 Entrée  : un projet (dict, format décrit dans 03_Modele_de_donnees.md).
 Sorties : - plan (dict)            -> utilisé par la page 2, le PDF et l'Excel
@@ -421,6 +421,7 @@ def valider(projet):
                 elif a in ai_used: E.append(f'{n}/{pn} : AI{a} déjà utilisée par {ai_used[a]}.')
                 else: ai_used[a] = pn
                 E += _valider_echelle(n, pn, p)
+                E += _valider_reglages_ai(n, pn, p)
             elif t == 'SORTIE_ANA':
                 o = p.get('ao')
                 if o not in (1, 2): E.append(f'{n}/{pn} : AO1 ou AO2 uniquement.')
@@ -470,6 +471,51 @@ def valider(projet):
 
 
 MAX_DETECTIONS = 100         # 15001-15100 ; 15101+ = comflags
+
+
+def _num(x):
+    return isinstance(x, (int, float)) and not isinstance(x, bool)
+
+
+def _valider_reglages_ai(n, pn, p):
+    """Réglages avancés d'une entrée analogique (v2.3), facultatifs :
+    etalonnage = {reg_bas, reg_haut, eng_bas, eng_haut} : conversion de la radio (CConfig : RegLow/RegHigh/EngLow/EngHigh,
+                 d'où Zero et Span) ; la valeur du registre vaut reg_bas pour eng_bas et reg_haut pour eng_haut ;
+    alarme_radio = {bas, haut, fenetre} : seuils de l'entrée dans la radio (SPLow/SPHigh/SPWindow)."""
+    E = []
+    et = p.get('etalonnage')
+    if et is not None:
+        ok = isinstance(et, dict) and all(_num(et.get(k)) for k in ('reg_bas', 'reg_haut', 'eng_bas', 'eng_haut'))
+        if not ok or not (0 <= et['reg_bas'] < et['reg_haut'] <= 65535) or et['eng_bas'] == et['eng_haut'] \
+                or int(et['reg_bas']) != et['reg_bas'] or int(et['reg_haut']) != et['reg_haut']:
+            E.append(f'{n}/{pn} : étalonnage : registre bas < registre haut (entiers 0-65535), valeurs bas/haut différentes.')
+        if p.get('mesure_bas') is not None or p.get('mesure_haut') is not None:
+            E.append(f'{n}/{pn} : étalonnage et échelle ne se cumulent pas (l\'étalonnage donne déjà l\'échelle).')
+        u = p.get('unite', 'V')
+        if not (1 <= len(u) <= 8) or set(u) & CARS_INTERDITS:
+            E.append(f'{n}/{pn} : unité de 1 à 8 caractères, sans espace ni < > & " \'.')
+    al = p.get('alarme_radio')
+    if al is not None:
+        if not (isinstance(al, dict) and _num(al.get('bas')) and _num(al.get('haut')) and al['bas'] <= al['haut']
+                and al.get('fenetre', 0) in (0, 1)):
+            E.append(f'{n}/{pn} : alarme radio : seuil bas ≤ seuil haut, fenêtre 0 ou 1.')
+    return E
+
+
+def reglages_ai(p):
+    """Champs de l'E/S de la radio pour une entrée analogique : {Zero, Span, RegLow, RegHigh, EngLow, EngHigh,
+    SPLow, SPHigh, SPWindow} ; seuls les champs à changer sont présents (vide = réglage standard)."""
+    r = {}
+    et = p.get('etalonnage')
+    if et:
+        span = (et['reg_haut'] - et['reg_bas']) / (et['eng_haut'] - et['eng_bas'])
+        r.update(Zero=_fmt(et['reg_bas'] - et['eng_bas'] * span), Span=_fmt(round(span, 5)),
+                 RegLow=int(et['reg_bas']), RegHigh=int(et['reg_haut']),
+                 EngLow=_fmt(et['eng_bas']), EngHigh=_fmt(et['eng_haut']))
+    al = p.get('alarme_radio')
+    if al:
+        r.update(SPLow=_fmt(al['bas']), SPHigh=_fmt(al['haut']), SPWindow=int(al.get('fenetre', 0)))
+    return r
 
 
 def _valider_echelle(n, pn, p):
@@ -637,11 +683,17 @@ def calculer_plan(projet):
             A = {'adresse': ANA_BASE + an, 'nom': nomu(S['nom'], p['nom']), 'label': p['nom'], 'ai': p['ai'], 'mode': mode,
                  'distant': registre_ai(p), 'io': io_ai(p), 'rp1': rp1, 'rp2': rp2,
                  'dp1': p.get('mesure_bas', e1), 'dp2': p.get('mesure_haut', e2),
-                 'unite': p.get('unite') if p.get('mesure_bas') is not None else ue}
+                 'unite': p.get('unite') if p.get('mesure_bas') is not None else ue,
+                 'reglages': reglages_ai(p), 'alarme': p.get('alarme_radio')}
+            et = p.get('etalonnage')
+            if et:                                     # v2.3 : l'étalonnage de la radio donne l'échelle du registre
+                A.update(rp1=int(et['reg_bas']), rp2=int(et['reg_haut']), dp1=et['eng_bas'], dp2=et['eng_haut'],
+                         unite=p.get('unite', 'V'))
             S['ana'].append(A)
-            ent = f"AI{p['ai']} {'0-20 mA' if mode == 'courant' else '0-5 V'}"
+            ent = (f"AI{p['ai']} {'courant' if mode == 'courant' else 'tension'}, étalonnage" if et
+                   else f"AI{p['ai']} {'0-20 mA' if mode == 'courant' else '0-5 V'}")
             reg(A['adresse'], A['nom'], 'Mesure analogique', S['nom'],
-                f"{ent} : {rp1} = {_fmt(A['dp1'])} {A['unite']}, {rp2} = {_fmt(A['dp2'])} {A['unite']}")
+                f"{ent} : {A['rp1']} = {_fmt(A['dp1'])} {A['unite']}, {A['rp2']} = {_fmt(A['dp2'])} {A['unite']}")
         for p in sorted([p for p in S['periph'] if p['type'] == 'SORTIE_ANA'], key=lambda p: p['ao']):
             ao += 1
             rp1, rp2, e1, e2, ue = AO_POINTS
@@ -870,7 +922,9 @@ def tag_ana(nom, registre, X):
     bas, haut = sorted((X['dp1'], X['dp2']))
     marge = (haut - bas) * 0.1
     over, under = _fmt(haut + marge), _fmt(bas - marge)
-    return tag(nom, registre, (X['unite'], over, under, over, under, X['rp1'], X['rp2'], _fmt(X['dp1']), _fmt(X['dp2'])))
+    al = X.get('alarme')                      # v2.3 : seuils de l'entrée dans la radio, repris sur le tableau de bord
+    hi, lo = (_fmt(al['haut']), _fmt(al['bas'])) if al else (over, under)
+    return tag(nom, registre, (X['unite'], over, under, hi, lo, X['rp1'], X['rp2'], _fmt(X['dp1']), _fmt(X['dp2'])))
 
 
 def tag(nom, registre, style, invert=0, haut=None):
@@ -972,6 +1026,9 @@ def construire_noms_et_dashboard(S, st, registres):
         for do in c['do']: S['noms_io'][f"Dot{do}"] = c['label'][:20]
     for R in S['radars']: S['noms_io'][f"Ain{R['ai']}"] = R['label'][:20]
     for X in S['ana'] + S['consignes']: S['noms_io'][X['io']] = X['label'][:20]
+    # v2.3 : les noms par défaut de 30009/30010 cèdent la place à une entrée analogique en tension sur AI3/AI4
+    surcharge = {X['distant'] for X in S['ana']}
+    noms = [x for x in noms[:2] if x[0] not in surcharge] + noms[2:]
     vus, propre = set(), []
     for a, n in noms:
         if a not in vus:
@@ -1105,6 +1162,14 @@ def _unite_xml(S, plan, gabarit):
         u = u[:g] + _set(u[g:], 'Enabled', 1)     # serveur Modbus TCP de la base
         g = u.find('<IO ID="VBatt1">'); h = u.find('</IO>', g)
         u = u[:g] + _set(_set(u[g:h], 'SPHigh', 14.6), 'SPWindow', 1) + u[h:]
+    # réglages avancés des entrées analogiques (v2.3)
+    for A in S['ana']:
+        if A['reglages']:
+            g = u.find(f'<IO ID="{A["io"]}">'); h = u.find('</IO>', g)
+            blk = u[g:h]
+            for champ, val in A['reglages'].items():
+                blk = _set(blk, champ, val)
+            u = u[:g] + blk + u[h:]
     # E/S : noms, anti-rebond
     for io, nom in S['noms_io'].items():
         u, n = re.subn(rf'(<IO ID="{io}">\s*)<Name>[^<]*</Name>', r'\g<1>' + C('Name', nom), u, count=1)
@@ -1322,6 +1387,12 @@ def xml_radio(plan, S, ioplus_actif=False, maintenant=None):
         ligne_io(io)[1].text = str(val)
     if base:
         v = ligne_io('VBatt1'); v[5].text = '14.6'; v[7].text = '1'
+    col = {'Zero': 1, 'Span': 2, 'SPLow': 4, 'SPHigh': 5, 'SPWindow': 7}      # colonnes de la table AIn
+    for A in S['ana']:
+        v = ligne_io(A['io'])
+        for champ, val in A['reglages'].items():
+            if champ in col:
+                v[col[champ]].text = str(val)
     _e2_table(r, ('IO', 'IOUsrCfg', 'IOUsrCfgTable'), S['noms_registres'])
     # fail-safe, mappings, sensibilité
     _e2_table(r, ('FailSafe', 'ConfigTable'), [(a, c, 0, 1, 0, 0, 0) for a, c in S['failsafe']])

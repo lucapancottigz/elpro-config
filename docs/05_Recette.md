@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 35 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé.
+Résultat attendu : `Ran 38 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé, étalonnage et alarme radio d'une entrée analogique.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -92,3 +92,13 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 
 - [ ] `examples\demo_site_B.json`, Générer : page 2, registre 411 nommé `B-BAS_F1_OR_CLI` ; aucun nom de registre ou de tag de plus de 15 caractères.
 - [ ] Ajouter un périphérique : le nom est limité à 15 caractères à la saisie.
+
+## Réglages avancés d'une entrée analogique (moteur v2.3)
+
+- [ ] `demo_site_A`, A-BASE : Entrée analogique `BATT_CAM`, Tension, AI4, Réglages avancés : Étalonnage 8192 / 30720 / 0 / 25, unité V ; Alarme de la radio 11,4 / 14,6, fenêtre décochée. « Span calculé : 901,12 ». OK.
+- [ ] Générer : registre 35301 « AI4 tension, étalonnage : 8192 = 0 V, 30720 = 25 V » ; tableau de bord en V avec alarmes 14,6 / 11,4.
+- [ ] `.cdb` dans CConfig, A-BASE, E/S AI4 (0-5V) : nom `BATT_CAM`, Zero 8192, Span 901.12, seuils 11.4 / 14.6.
+- [ ] XML de A-BASE : ligne AIn `BATT_CAM | 8192 | 901.12 | 5 | 11.4 | 14.6 | 0 | 0`.
+- [ ] Cocher Étalonnage grise l'Échelle ; rouvrir le périphérique : réglages relus et groupe déplié.
+- [ ] Changer seulement un seuil, Générer : version mineure.
+- [ ] Projets existants sans ces réglages : « aucune modification ».
