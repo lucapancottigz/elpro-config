@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
-Moteur de génération ELPRO GeoAzimut (v2.0) — IMPLÉMENTATION DE RÉFÉRENCE.
+Moteur de génération ELPRO GeoAzimut (v2.1) — IMPLÉMENTATION DE RÉFÉRENCE.
 
 Entrée  : un projet (dict, format décrit dans 03_Modele_de_donnees.md).
 Sorties : - plan (dict)            -> utilisé par la page 2, le PDF et l'Excel
           - fichier .cdb (UTF-16)  -> ecrire_cdb(plan, chemin)
-          - fichiers .sconf        -> ecrire_sconf(lignes, chemin)
+          - fichiers .sconf        -> ecrire_sconf(lignes, chemin, actif)
+          - XML de chaque radio    -> ecrire_xml_radio(plan, S, chemin, ioplus_actif)   (v2.1)
 
 Python 3.10+, bibliothèque standard uniquement.
 NE PAS MODIFIER LES RÈGLES de ce fichier : elles ont été validées sur radio.
@@ -191,7 +192,10 @@ def version_config(projet):
 def _contenu(projet):
     """Partie du projet qui définit la configuration (sans version ni historique), normalisée."""
     import json as _j
-    return _j.loads(_j.dumps({'systeme': projet.get('systeme', {}), 'radios': projet.get('radios', [])}))
+    c = _j.loads(_j.dumps({'systeme': projet.get('systeme', {}), 'radios': projet.get('radios', [])}))
+    if not c['systeme'].get('ioplus_actif'):
+        c['systeme'].pop('ioplus_actif', None)        # option absente = false : pas de différence pour les anciens projets
+    return c
 
 
 def _radios_appariees(anc, nouv):
@@ -320,6 +324,12 @@ def valider(projet):
         E.append('Système : clé de chiffrement de 8 à 63 caractères ASCII imprimables, sans espace.')
     if not (10 <= int(s.get('puissance_dbm', 34)) <= 40):
         E.append('Système : puissance entre 10 et 40 dBm.')
+    textes = [v for v in s.values() if isinstance(v, str)] + [str(r.get(k) or '') for r in radios
+                                                               for k in ('description', 'titre_page')]
+    if any(']]>' in t for t in textes):
+        E.append('Textes : la suite « ]]> » est interdite (fichiers XML des radios).')
+    if not isinstance(s.get('ioplus_actif', False), bool):
+        E.append('Système : « IO Plus activé » doit valoir true ou false.')
     if not RE_VERSION.match(version_config(projet)):
         E.append('Version de configuration : format X.Y attendu (ex. 2.1).')
     if not radios:
@@ -1152,17 +1162,205 @@ def ecrire_cdb(plan, chemin):
 
 
 # ---------------------------------------------------------------- écriture .sconf
-def ecrire_sconf(lignes, chemin):
+def ecrire_sconf(lignes, chemin, actif=False):
+    """Fichier IO Plus (.sconf). actif=False (défaut) : logique livrée désactivée."""
     assert len(lignes) <= 300, 'IO Plus : 300 lignes maximum'
     rows = ''.join('<tr>' + ''.join(f'<val><![CDATA[{x}]]></val>' for x in l) + '</tr>' for l in lignes)
     conf = ('<group name="Logic"><item name="version"><val><![CDATA[1]]></val></item>'
-            '<item name="Enabled"><val><![CDATA[0]]></val></item>'
+            f'<item name="Enabled"><val><![CDATA[{1 if actif else 0}]]></val></item>'
             '<table name="StatementList" ncols="6" maxrows="300">' + rows + '</table></group>\n')
     with tarfile.open(chemin, 'w:gz', format=tarfile.PAX_FORMAT) as tf:
         for nom, data in (('Logic.conf', conf.encode('utf-8')), ('Logic.version', b'1\n')):
             ti = tarfile.TarInfo(nom); ti.size = len(data); ti.mode = 0o666
             ti.uid = ti.gid = 0; ti.uname = ti.gname = 'root'; ti.mtime = int(time.time())
             tf.addfile(ti, io.BytesIO(data))
+    return chemin
+
+
+# ---------------------------------------------------------------- XML de chaque radio (v2.1)
+# Format E2Config : celui de l'export « Save configuration » de la page web de la radio. Le fichier se charge
+# directement dans la radio (page web) et contient tout : réseau, E/S, mappings, fail-safe, tableau de bord,
+# IO Plus (actif ou non selon l'option) et, sur la base, la liste du datalog.
+# Gabarit : resources/radio_template.xml (export d'une radio firmware 2.59, sans aucune donnée de site).
+LISTE_LOG = [('COMFLAGS', 15101, 20), ('BATTV_FAIL', 15201, 20), ('RSSI_FAIL', 15301, 20),
+             ('DET_FAIL', 15401, 20), ('FEUX_FAIL', 15501, 20), ('MAINV_FAIL', 15601, 20),
+             ('BATTV', 30501, 20), ('RSSI', 35101, 20), ('DET', 15001, 20), ('FEUX', 401, 20),
+             ('MAINV', 10501, 20), ('CABLE2', 15021, 20), ('RADAR', 35201, 20), ('FEUX2', 421, 20),
+             ('FEUX3', 441, 10), ('RADAR_FAIL', 15701, 20)]
+# liste standard des centrales, identique sur tous les sites (noms reconnus par ELPRO Logs)
+LOG_REGLAGES = {'Scan Rate': 30, 'Records per File': 2880}     # à saisir à la main : absents de l'export XML
+# lignes AIn du XML -> ID d'E/S CConfig (index 0 = registre 30001)
+_AIN_IDS = ['Ain1', 'Ain2', 'Ain3', 'Ain4', 'VSupply', 'V24', 'VBatt1', 'VExt', 'Ain5', 'Ain6']
+
+
+def liste_log(plan):
+    """Liste du datalog de la base : liste standard + E/S analogiques si le site en a (v2.0)."""
+    L = list(LISTE_LOG)
+    na = sum(len(S['ana']) for S in plan['stations'])
+    nc = sum(len(S['consignes']) for S in plan['stations'])
+    if na:
+        L += [('ANA', ANA_BASE + 1, min(na, 20)), ('ANA_FAIL', 15801, 17)]
+    if nc:
+        L.append(('AO', AO_BASE + 1, min(nc, 20)))
+    return L
+
+
+def _e2_trouver(root, *chemin):
+    e = root
+    for n in chemin:
+        t = [c for c in e if c.get('name') == n]
+        if len(t) != 1:
+            raise KeyError('/'.join(chemin))
+        e = t[0]
+    return e
+
+
+def _e2_item(root, chemin, val):
+    e = _e2_trouver(root, *chemin)
+    assert e.tag == 'item', chemin
+    e.find('val').text = str(val)
+
+
+def _e2_table(root, chemin, lignes):
+    import xml.etree.ElementTree as ET
+    t = _e2_trouver(root, *chemin)
+    assert t.tag == 'table', chemin
+    nc, mx = int(t.get('ncols')), int(t.get('maxrows'))
+    if len(lignes) > mx:
+        raise ValueError(f"{'/'.join(chemin)} : {len(lignes)} lignes, maximum {mx}")
+    for tr in list(t):
+        t.remove(tr)
+    for l in lignes:
+        assert len(l) == nc, (chemin, l)
+        tr = ET.SubElement(t, 'tr')
+        for v in l:
+            ET.SubElement(tr, 'val').text = str(v)
+
+
+def _e2_texte(root):
+    """Sérialise comme la radio : indentation 2 espaces, valeurs en CDATA, une ligne par <tr>."""
+    out = ['<?xml version="1.0" encoding="utf-8"?>']
+
+    def cd(v):
+        v = v or ''
+        if ']]>' in v:
+            raise ValueError(f'Texte interdit dans un XML de radio : « ]]> » ({v})')
+        return f'<val><![CDATA[{v}]]></val>'
+
+    def rec(e, ind):
+        sp = '  ' * ind
+        at = ''.join(f' {k}="{v}"' for k, v in e.attrib.items())
+        if e.tag == 'item':
+            out.extend([f'{sp}<item{at}>', f'{sp}  {cd(e.find("val").text)}', f'{sp}</item>'])
+        elif e.tag == 'table':
+            out.append(f'{sp}<table{at}>')
+            out.extend(f'{sp}  <tr>' + ''.join(cd(v.text) for v in tr.findall('val')) + '</tr>' for tr in e.findall('tr'))
+            out.append(f'{sp}</table>')
+        else:
+            out.append(f'{sp}<{e.tag}{at}>')
+            for c in e:
+                rec(c, ind + 1)
+            out.append(f'{sp}</{e.tag}>')
+    rec(root, 0)
+    return '\n'.join(out) + '\n'
+
+
+def xml_radio(plan, S, ioplus_actif=False, maintenant=None):
+    """Texte du XML E2Config de la station S (élément de plan['stations'])."""
+    import xml.etree.ElementTree as ET
+    with open(os.path.join(RESSOURCES, 'radio_template.xml'), encoding='utf-8') as f:
+        r = ET.fromstring(f.read().encode('utf-8'))
+    s = plan['systeme']
+    base = S['role'] == 'base'
+    ip_de = {X['uid']: X['ip'] for X in plan['stations']}
+    dest = lambda d: '127.0.0.1' if d == 'local' else ip_de[d]
+    oct_ = sorted(int(X['ip'].rsplit('.', 1)[1]) for X in plan['stations'])
+    N, W = ('networking',), ('networking', 'wifi0')
+    # réseau
+    for ch, v in ((N + ('eth0', 'IP_Address'), S['ip']), (W + ('IP_Address',), S['ip']),
+                  (N + ('Gateway_IP',), PASSERELLE),
+                  (N + ('Filter', 'EasyFilter', 'StartIP'), f'{RESEAU}.{oct_[0]}'),
+                  (N + ('Filter', 'EasyFilter', 'EndIP'), f'{RESEAU}.{oct_[-1]}'),
+                  (W + ('WPA', 'Passphrase'), s['cle_chiffrement']),
+                  (W + ('Radio', 'TXPower'), S['puissance_dbm']),
+                  (W + ('Radio', 'Data_Rates_1_1'), 0 if base else 4),
+                  (W + ('Radio', 'Base_Rates_1_1'), 0 if base else 1),
+                  (W + ('DeviceMode',), {'base': 0, 'repeater': 1, 'remote': 2}[S['role']]),
+                  (W + ('ProMeshMode',), 0 if base else 1),
+                  (W + ('SystemName',), s['system_name']),
+                  (W + ('UpstreamDeviceName',), S['amont']),
+                  # identification
+                  (('identification', 'DeviceName'), S['nom']),
+                  (('identification', 'Owner'), s.get('proprietaire', '')),
+                  (('identification', 'Contact'), s.get('contact', '')),
+                  (('identification', 'Description'), S['description']),
+                  (('identification', 'Location'), s.get('localisation', '')),
+                  (('identification', 'CfgVersion'), date_cfgversion(maintenant or datetime.datetime.now())),
+                  # série et serveur Modbus (valeurs relevées sur les sites en service)
+                  (('serial', 'ttyS0', 'DataRate'), 11 if base else 6),
+                  (('serial', 'ttyS1', 'DataRate'), 9 if base else 6),
+                  (('modbus', 'Server', 'Enabled'), 1 if base else 0),
+                  # radio maillée, tableau de bord
+                  (('ELPROMesh', 'AckTxCount'), S['ack'][0]),
+                  (('ELPROMesh', 'AckTimeout'), S['ack'][1]),
+                  (('HMI', 'PageTitle'), S['titre_page'])):
+        _e2_item(r, ch, v)
+    # E/S : noms, anti-rebond, seuils de la batterie de la base
+    lignes_io = {'DIn': _e2_trouver(r, 'IO', 'DIn'), 'DOt': _e2_trouver(r, 'IO', 'DOt'),
+                 'AOt': _e2_trouver(r, 'IO', 'AOt'), 'AIn': _e2_trouver(r, 'IO', 'AIn')}
+
+    def ligne_io(io):
+        if io[:3] in ('Din', 'Dot', 'Aot'):
+            t, i = {'Din': 'DIn', 'Dot': 'DOt', 'Aot': 'AOt'}[io[:3]], int(io[3:]) - 1
+        else:
+            t, i = 'AIn', _AIN_IDS.index(io)
+        return list(lignes_io[t].findall('tr'))[i].findall('val')
+    for io, nom in S['noms_io'].items():
+        ligne_io(io)[0].text = str(nom)
+    for io, val in S['debounce'].items():
+        ligne_io(io)[1].text = str(val)
+    if base:
+        v = ligne_io('VBatt1'); v[5].text = '14.6'; v[7].text = '1'
+    _e2_table(r, ('IO', 'IOUsrCfg', 'IOUsrCfgTable'), S['noms_registres'])
+    # fail-safe, mappings, sensibilité
+    _e2_table(r, ('FailSafe', 'ConfigTable'), [(a, c, 0, 1, 0, 0, 0) for a, c in S['failsafe']])
+    _e2_table(r, ('ELPROMesh', 'WriteMapping'), [
+        (1, m['nom'], dest(m['dest']), m['ack'], m['inv'], 0, 0, 1, m['cos'], 0, m['force'], 0,
+         m['local'], m['distant'], m['nb']) for m in S['writes']])
+    _e2_table(r, ('ELPROMesh', 'ReadMapping'), [
+        (1, m['nom'], dest(m['dest']), m['inv'], m['periode'], m['offset'], m['timeout'], 0, m['fail'],
+         m['local'], m['distant'], m['nb']) for m in S['reads']])
+    sc = []
+    for m in S['scatters']:
+        paires = [x for l, rr in m['paires'] for x in (l, rr)]
+        sc.append((1, m['nom'], dest(m['dest']), m['ack'], m['inv'], m['periode'], m['offset'], 1, 1, 0, 0,
+                   m['fail'], *paires, *([0] * (64 - len(paires)))))
+    _e2_table(r, ('ELPROMesh', 'ScatterMapping'), sc)
+    if S['sensibilite']:
+        _e2_table(r, ('ELPROMesh', 'Sensitivity'), S['sensibilite'])
+    # tableau de bord
+    _e2_table(r, ('HMI', 'Tags'), [(t['nom'], t['registre'], 0, t['unites'], t['over'], t['under'], t['haut'],
+                                    t['bas'], t['invert'], t['rp1'], t['rp2'], t['dp1'], t['dp2']) for t in S['tags']])
+    _e2_table(r, ('HMI', 'Groups'), S['groupes'])
+    # IO Plus : toujours présent (une radio qui avait une logique la perd si la station n'en a pas)
+    iop = S['iop'] or []
+    _e2_item(r, ('Logic', 'Enabled'), 1 if (ioplus_actif and iop) else 0)
+    _e2_table(r, ('Logic', 'StatementList'), iop)
+    # datalog : sur la base seulement ; groupe retiré des autres radios (leur export n'en a pas, anciens firmwares compris)
+    if base:
+        _e2_table(r, ('DataLog', 'Records'), [(1, n, a, c) for n, a, c in liste_log(plan)])
+    else:
+        r.remove(_e2_trouver(r, 'DataLog'))
+    return _e2_texte(r)
+
+
+def nom_fichier_xml(plan, S):
+    return f"{base_nom_fichier(plan)}_{re.sub(r'[^A-Za-z0-9_-]+', '_', S['nom'])}.xml"
+
+
+def ecrire_xml_radio(plan, S, chemin, ioplus_actif=False):
+    with open(chemin, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(xml_radio(plan, S, ioplus_actif))
     return chemin
 
 
@@ -1242,19 +1440,38 @@ def importer_cdb(chemin):
     return {'version': 1, 'version_config': VERSION_DEFAUT, 'systeme': systeme, 'radios': radios}, av
 
 
+def ioplus_actif(projet_ou_plan):
+    """Option générale du projet (v2.1) : IO Plus livré activé dans les .sconf et les XML. Défaut : désactivé."""
+    return bool(projet_ou_plan.get('systeme', {}).get('ioplus_actif', False))
+
+
+def nom_fichier_sconf(plan, S):
+    """IOPlus_<radio>_V<version>_ACTIVE.sconf ou ..._DESACTIVE.sconf selon l'option IO Plus."""
+    return f"IOPlus_{S['nom']}_V{plan['version_config']}_{'ACTIVE' if ioplus_actif(plan) else 'DESACTIVE'}.sconf"
+
+
+def ecrire_sconf_tous(plan, dossier):
+    """Écrit le .sconf de chaque station qui a une logique IO Plus. Retourne la liste des chemins."""
+    return [ecrire_sconf(S['iop'], os.path.join(dossier, nom_fichier_sconf(plan, S)), ioplus_actif(plan))
+            for S in plan['stations'] if S['iop']]
+
+
+def ecrire_xml_radios(plan, dossier):
+    """Écrit le XML de chaque radio (v2.1). Retourne la liste des chemins."""
+    return [ecrire_xml_radio(plan, S, os.path.join(dossier, nom_fichier_xml(plan, S)), ioplus_actif(plan))
+            for S in plan['stations']]
+
+
 def generer_tout(projet, dossier):
-    """Génère le .cdb et tous les .sconf dans `dossier`. Retourne (plan, liste_fichiers).
-    Les noms contiennent la version de configuration du projet (voir preparer_generation)."""
+    """Génère le .cdb, les .sconf et le XML de chaque radio dans `dossier`. Retourne (plan, liste_fichiers).
+    Les noms contiennent la version de configuration du projet (voir preparer_generation).
+    IO Plus actif ou non selon systeme.ioplus_actif (suffixe ACTIVE / DESACTIVE des .sconf)."""
     plan = calculer_plan(projet)
     os.makedirs(dossier, exist_ok=True)
-    nom = base_nom_fichier(plan)
-    v = plan['version_config']
-    fichiers = [ecrire_cdb(plan, os.path.join(dossier, f'{nom}.cdb'))]
-    for S in plan['stations']:
-        if S['iop']:
-            fichiers.append(ecrire_sconf(S['iop'], os.path.join(dossier, f'IOPlus_{S["nom"]}_V{v}_DESACTIVE.sconf')))
+    fichiers = [ecrire_cdb(plan, os.path.join(dossier, f'{base_nom_fichier(plan)}.cdb'))]
+    fichiers += ecrire_sconf_tous(plan, dossier)
+    fichiers += ecrire_xml_radios(plan, dossier)
     return plan, fichiers
-
 
 if __name__ == '__main__':
     import json, sys

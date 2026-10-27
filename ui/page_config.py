@@ -106,12 +106,17 @@ class PageConfig(QWidget):
         grille.addWidget(lab('System Name'), 0, 4); grille.addWidget(self.sys['system_name'], 0, 5, 1, 3)
         grille.addWidget(lab('Version de configuration'), 1, 0); grille.addLayout(version, 1, 1, 1, 3)
         cle = QHBoxLayout(); cle.addWidget(self.sys['cle_chiffrement'], 1); cle.addWidget(bt_cle); cle.addWidget(self.bt_oeil)
+        self.ck_ioplus = QCheckBox('IO Plus activé dans les fichiers générés')
+        self.ck_ioplus.setToolTip('Décoché : IO Plus est chargé mais désactivé ; '
+                                  'l\'activer à la main sur chaque radio après vérification.')
+        self.ck_ioplus.clicked.connect(self._changer_ioplus)
         grille.addWidget(lab('Clé de chiffrement'), 2, 0); grille.addLayout(cle, 2, 1, 1, 3)
         grille.addWidget(lab('Puissance générale'), 2, 4); grille.addWidget(self.sp_puissance, 2, 5)
-        grille.addWidget(lab('Propriétaire'), 3, 0); grille.addWidget(self.sys['proprietaire'], 3, 1)
-        grille.addWidget(lab('Contact'), 3, 2); grille.addWidget(self.sys['contact'], 3, 3)
-        grille.addWidget(lab('Localisation'), 3, 4); grille.addWidget(self.sys['localisation'], 3, 5, 1, 3)
-        grille.addWidget(lab('Description'), 4, 0); grille.addWidget(self.sys['description'], 4, 1, 1, 7)
+        grille.addWidget(self.ck_ioplus, 3, 5, 1, 3)
+        grille.addWidget(lab('Propriétaire'), 4, 0); grille.addWidget(self.sys['proprietaire'], 4, 1)
+        grille.addWidget(lab('Contact'), 4, 2); grille.addWidget(self.sys['contact'], 4, 3)
+        grille.addWidget(lab('Localisation'), 4, 4); grille.addWidget(self.sys['localisation'], 4, 5, 1, 3)
+        grille.addWidget(lab('Description'), 5, 0); grille.addWidget(self.sys['description'], 5, 1, 1, 7)
         for c in (1, 3, 5):
             grille.setColumnStretch(c, 1)
         return g
@@ -219,6 +224,7 @@ class PageConfig(QWidget):
         for cle, ed in self.sys.items():
             ed.setText(str(s.get(cle, '') or ''))
         self.sp_puissance.setValue(int(s.get('puissance_dbm', 34) or 34))
+        self.ck_ioplus.setChecked(M.ioplus_actif(projet))
         self.bt_oeil.setChecked(False)
         self._chargement = False
         self._rafraichir_radios(0)
@@ -387,6 +393,15 @@ class PageConfig(QWidget):
         if r is not None and r.get('puissance_dbm') is None:
             self._chargement = True; self.sp_puiss.setValue(v); self._chargement = False
         self._signaler()
+
+    def _changer_ioplus(self, actif):
+        if actif and QMessageBox.question(
+                self, 'IO Plus activé',
+                'La logique IO Plus sera active dès le chargement des fichiers dans les radios '
+                '(comflags de la base, radars). Continuer ?') != QMessageBox.Yes:
+            self.ck_ioplus.setChecked(False)
+            return
+        self._maj_systeme('ioplus_actif', actif)
 
     def _generer_cle(self):
         rep = QMessageBox.question(self, 'Nouvelle clé de chiffrement',

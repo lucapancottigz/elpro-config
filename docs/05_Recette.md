@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 30 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques.
+Résultat attendu : `Ran 35 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 16 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -26,7 +26,7 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 ### Page 2
 - [ ] demo_site_A généré : arbre `Demo Site A / IP Address List / Units / A-BASE / Mappings…` ; `Mappings` de A-BASE = 16 lectures + 5 scatters ; cycle de polling 440 s dans le nœud racine.
 - [ ] Modifier un champ en page 1 → page 2 vidée, boutons grisés.
-- [ ] Les 4 boutons créent leurs fichiers ; demo_site_A → 1 `.sconf` (base) ; demo_site_B → 2 `.sconf` (B-BASE et B-SM3).
+- [ ] Les 5 boutons créent leurs fichiers (dont un XML par radio) ; demo_site_A → 1 `.sconf` (base) ; demo_site_B → 2 `.sconf` (B-BASE et B-SM3).
 - [ ] Fichier Excel ouvert dans Excel puis export relancé → message d'erreur propre, pas de plantage.
 
 ### Import
@@ -40,7 +40,7 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 ### Exécutable
 - [ ] L'icône (logo GeoAzimut sur tuile foncée) apparaît sur le fichier `ELPRO Config.exe` dans l'Explorateur, dans la barre de titre et dans la barre des tâches.
 - [ ] `dist\ELPRO Config\ELPRO Config.exe` démarre sur un PC Windows **sans Python installé**.
-- [ ] Les 4 exports fonctionnent depuis l'exécutable (gabarits et police trouvés).
+- [ ] Les 5 exports fonctionnent depuis l'exécutable (gabarits, dont `radio_template.xml`, et police trouvés).
 - [ ] Windows réglé en français : la date « CfgVersion » du `.cdb` reste au format `6-Oct-2026 8:00:42 AM`.
 
 ## Version de configuration et feu à 4 sorties (moteur v1.5)
@@ -78,3 +78,12 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] Remote : **Sortie analogique** AO1 : registre 45001 « Consigne sortie analogique » ; câblage : ligne AO1 ; checklist : « écrire 16384 puis 49152 dans 45001 ».
 - [ ] Ajouter une entrée ou une sortie analogique à un projet existant : version **majeure** ; changer seulement l'échelle : **mineure**.
 - [ ] Ouvrir un projet existant sans E/S analogique et générer : fichiers identiques à la 1.4.0 (hors date et version).
+
+## XML des radios et option IO Plus (moteur v2.1)
+
+- [ ] `demo_site_B`, Générer, « Générer les XML des radios » : 9 fichiers `Demo_Site_B_V1.0_<radio>.xml`.
+- [ ] Ouvrir `…_B-BASE.xml` dans un éditeur : `DeviceName` = B-BASE, groupe `DataLog` avec 16 lignes, groupe `Logic` avec `Enabled` = 0 ; `…_B-SM1.xml` : pas de groupe `DataLog`.
+- [ ] Cocher « IO Plus activé » : confirmation demandée ; Non → case décochée. Oui → Générer : version mineure ; `.sconf` nommés `_ACTIVE` ; dans `…_B-BASE.xml`, `Logic/Enabled` = 1 ; page 2 et PDF indiquent « livré activé ».
+- [ ] Décocher, Générer : version mineure ; `.sconf` `_DESACTIVE`.
+- [ ] Ouvrir un projet existant (sans l'option) et générer : « aucune modification ».
+- [ ] Charger un XML dans une radio de banc par sa page web : configuration complète, IO Plus dans l'état choisi ; sur la base, régler Scan Rate 30 et Records per File 2880.

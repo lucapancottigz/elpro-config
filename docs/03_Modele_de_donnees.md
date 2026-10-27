@@ -43,6 +43,11 @@ La page 1 produit et relit **exactement** cette structure (`dict` Python, enregi
 | `contact` | texte | non | `""` | libre |
 | `description` | texte | non | `""` | libre |
 | `localisation` | texte | non | `""` | libre |
+| `ioplus_actif` | booléen | non | `false` | IO Plus livré activé dans les `.sconf` et les XML des radios. `false` et absent sont équivalents : les projets existants ne changent pas (pas de nouvelle version). Passer de `false` à `true` (ou l'inverse) est une modification **mineure** |
+
+### XML des radios (moteur v2.1)
+
+Un fichier par radio (`<nom_projet>_V<version>_<radio>.xml`), au format E2Config de l'export « configuration » de la page web de la radio : réseau, E/S, mappings, fail-safe, tableau de bord, IO Plus et, **sur la base seulement**, la liste du datalog (liste standard, plus `ANA` / `ANA_FAIL` / `AO` si le site a des E/S analogiques). Le groupe IO Plus est toujours présent (vide et désactivé sur une radio sans logique, pour effacer une ancienne logique). Les réglages Scan Rate (30) et Records per File (2880) du datalog ne font pas partie du XML : ils se règlent à la main sur la base.
 
 ## `radios` (liste ordonnée)
 

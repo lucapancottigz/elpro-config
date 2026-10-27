@@ -73,7 +73,7 @@ class TestExemples(unittest.TestCase):
                 txt = cdb.decode('utf-16')
                 self.assertIn('\r\n', txt)                                   # CRLF
                 self.assertEqual(len(re.findall(r'<Unit Type="E2CI"', txt)), len(plan['stations']))
-                for f in fichiers[1:]:
+                for f in [x for x in fichiers if x.endswith('.sconf')]:
                     with tarfile.open(f) as tf:
                         self.assertEqual(sorted(tf.getnames()), ['Logic.conf', 'Logic.version'])
                         conf = tf.extractfile('Logic.conf').read().decode()
@@ -206,7 +206,8 @@ class TestVersion(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             plan, f = M.generer_tout(p, d)
             self.assertEqual(sorted(os.path.basename(x) for x in f),
-                             ['Demo_Site_B_V3.2.cdb', 'IOPlus_B-BASE_V3.2_DESACTIVE.sconf', 'IOPlus_B-SM3_V3.2_DESACTIVE.sconf'])
+                             ['Demo_Site_B_V3.2.cdb'] + sorted(f'Demo_Site_B_V3.2_{S["nom"]}.xml' for S in plan['stations'])
+                             + ['IOPlus_B-BASE_V3.2_DESACTIVE.sconf', 'IOPlus_B-SM3_V3.2_DESACTIVE.sconf'])
         self.assertEqual(M.base_nom_fichier(plan), 'Demo_Site_B_V3.2')
         p['version_config'] = '3'
         self.assertTrue(any('Version de configuration' in e for e in M.valider(p)))
@@ -501,6 +502,114 @@ class TestAnalogique(unittest.TestCase):
         c = json.loads(json.dumps(b))
         next(x for r in c['radios'] for x in r['peripheriques'] if x['nom'] == 'NIVEAU')['mesure_haut'] = 400
         self.assertEqual(M.classer_modification(b, c), 'mineure')           # échelle changée : aucun registre ne bouge
+
+
+class TestXmlRadio(unittest.TestCase):
+    """XML E2Config de chaque radio (moteur v2.1)."""
+
+    @staticmethod
+    def plat(txt):
+        import xml.etree.ElementTree as ET
+        r = ET.fromstring(txt.encode('utf-8')); I, T = {}, {}
+
+        def rec(e, p):
+            for c in e:
+                q = p + '/' + (c.get('name') or c.tag)
+                if c.tag == 'item': I[q] = c.find('val').text or ''
+                elif c.tag == 'table': T[q] = [[v.text or '' for v in tr] for tr in c]
+                else: rec(c, q)
+        rec(r, ''); return I, T
+
+    def test_gabarit_sans_donnees_de_site(self):
+        I, T = self.plat(Path(ICI, '..', 'resources', 'radio_template.xml').read_text(encoding='utf-8'))
+        for k in ('DeviceName', 'Owner', 'Contact', 'Description', 'Location', 'CfgVersion'):
+            self.assertEqual(I[f'/identification/{k}'], '', k)
+        for k in ('WPA/Passphrase', 'SystemName', 'UpstreamDeviceName'):
+            self.assertEqual(I[f'/networking/wifi0/{k}'], '', k)
+        for t in ('/DataLog/Records', '/FailSafe/ConfigTable', '/ELPROMesh/ReadMapping', '/ELPROMesh/WriteMapping',
+                  '/ELPROMesh/ScatterMapping', '/HMI/Tags', '/Logic/StatementList'):
+            self.assertEqual(T[t], [], t)
+
+    def test_contenu_par_station(self):
+        for nom in ('demo_site_A', 'demo_site_B'):
+            p = charger(nom); plan = M.calculer_plan(p)
+            ips = {S['ip'] for S in plan['stations']} | {'127.0.0.1'}
+            for S in plan['stations']:
+                with self.subTest(nom, station=S['nom']):
+                    txt = M.xml_radio(plan, S)
+                    self.assertTrue(txt.startswith('<?xml version="1.0" encoding="utf-8"?>\n<group name="E2Config">'))
+                    self.assertNotIn('UID', txt)
+                    I, T = self.plat(txt)
+                    base = S['role'] == 'base'
+                    self.assertEqual(I['/identification/DeviceName'], S['nom'])
+                    self.assertEqual(I['/networking/wifi0/IP_Address'], S['ip'])
+                    self.assertEqual(I['/networking/eth0/IP_Address'], S['ip'])
+                    self.assertEqual(I['/networking/wifi0/WPA/Passphrase'], p['systeme']['cle_chiffrement'])
+                    self.assertEqual(I['/networking/wifi0/DeviceMode'], str({'base': 0, 'repeater': 1, 'remote': 2}[S['role']]))
+                    self.assertEqual(I['/networking/wifi0/UpstreamDeviceName'], S['amont'])
+                    self.assertEqual(I['/modbus/Server/Enabled'], '1' if base else '0')
+                    self.assertEqual(len(T['/ELPROMesh/ReadMapping']), len(S['reads']))
+                    self.assertEqual(len(T['/ELPROMesh/WriteMapping']), len(S['writes']))
+                    self.assertEqual(len(T['/ELPROMesh/ScatterMapping']), len(S['scatters']))
+                    for l in T['/ELPROMesh/ReadMapping'] + T['/ELPROMesh/WriteMapping'] + T['/ELPROMesh/ScatterMapping']:
+                        self.assertIn(l[2], ips)
+                    for l in T['/ELPROMesh/ScatterMapping']:
+                        self.assertEqual(len(l), 76)
+                    self.assertEqual(T['/FailSafe/ConfigTable'], [[str(a), str(c), '0', '1', '0', '0', '0'] for a, c in S['failsafe']])
+                    self.assertEqual(len(T['/HMI/Tags']), len(S['tags']))
+                    self.assertEqual(T['/IO/IOUsrCfg/IOUsrCfgTable'], [[str(a), n] for a, n in S['noms_registres']])
+                    # IO Plus : toujours présent, désactivé par défaut
+                    self.assertEqual(I['/Logic/Enabled'], '0')
+                    self.assertEqual(T['/Logic/StatementList'], [[str(x) for x in l] for l in (S['iop'] or [])])
+                    # datalog : base seulement, liste standard
+                    if base:
+                        self.assertEqual(T['/DataLog/Records'][:16], [['1', n, str(a), str(c)] for n, a, c in M.LISTE_LOG])
+                    else:
+                        self.assertNotIn('/DataLog/Records', T)
+
+    def test_option_ioplus(self):
+        p = charger('demo_site_B'); plan = M.calculer_plan(p)
+        B, R = plan['stations'][0], next(S for S in plan['stations'] if not S['iop'])
+        self.assertEqual(self.plat(M.xml_radio(plan, B, True))[0]['/Logic/Enabled'], '1')
+        self.assertEqual(self.plat(M.xml_radio(plan, R, True))[0]['/Logic/Enabled'], '0')     # pas de logique : reste à 0
+        p['systeme']['ioplus_actif'] = True
+        self.assertEqual(M.valider(p), [])
+        with tempfile.TemporaryDirectory() as d:
+            plan, f = M.generer_tout(p, d)
+            sc = [x for x in f if x.endswith('.sconf')]
+            self.assertTrue(sc and all(x.endswith('_ACTIVE.sconf') and '_DESACTIVE' not in x for x in sc))
+            with tarfile.open(sc[0]) as tf:
+                self.assertIn('<item name="Enabled"><val><![CDATA[1]]></val></item>', tf.extractfile('Logic.conf').read().decode())
+            xb = next(x for x in f if x.endswith('_B-BASE.xml'))
+            self.assertEqual(self.plat(Path(xb).read_text(encoding='utf-8'))[0]['/Logic/Enabled'], '1')
+        p['systeme']['ioplus_actif'] = 'oui'
+        self.assertTrue(any('IO Plus' in e for e in M.valider(p)))
+        p['systeme']['ioplus_actif'] = False
+        self.assertEqual(M.classer_modification(dict(p, systeme=dict(p['systeme'], ioplus_actif=True)), p), 'mineure')
+        q = dict(p, systeme={k: v for k, v in p['systeme'].items() if k != 'ioplus_actif'})
+        self.assertIsNone(M.classer_modification(q, p))          # false = absent : aucune modification
+
+    def test_base_et_log_analogique(self):
+        p = charger('demo_site_A')
+        R = {r['nom']: r for r in p['radios']}
+        R['A-SM1']['peripheriques'].append({'type': 'ENTREE_ANA', 'nom': 'AI2', 'ai': 2})
+        plan = M.calculer_plan(p); B = plan['stations'][0]
+        I, T = self.plat(M.xml_radio(plan, B))
+        batt = next(l for l in T['/IO/AIn'] if l[0] == 'Battery Voltage')
+        self.assertEqual((batt[5], batt[7]), ('14.6', '1'))
+        self.assertEqual((I['/serial/ttyS0/DataRate'], I['/serial/ttyS1/DataRate']), ('11', '9'))
+        noms = [l[1] for l in T['/DataLog/Records']]
+        self.assertEqual(noms[16:], ['ANA', 'ANA_FAIL'])
+        self.assertIn(['1', 'ANA', '35301', '1'], T['/DataLog/Records'])
+
+    def test_cdata_interdit(self):
+        p = charger('demo_site_A'); p['systeme']['proprietaire'] = 'A]]>B'
+        self.assertTrue(any(']]>' in e for e in M.valider(p)))
+        p['systeme']['proprietaire'] = 'ok'
+        plan = M.calculer_plan(p); plan['systeme']['proprietaire'] = 'A]]>B'     # garde-fou de l'écriture
+        with self.assertRaises(ValueError):
+            M.xml_radio(plan, plan['stations'][0])
+
 
 if __name__ == '__main__':
     unittest.main()

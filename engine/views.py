@@ -8,6 +8,7 @@ Vues prêtes à afficher, calculées à partir du plan (elpro_engine.calculer_pl
 L'interface ne fait QUE afficher ces structures. Aucune règle métier ici côté UI.
 """
 from elpro_engine import OP, CRENEAU_S
+import elpro_engine as M
 
 NOM_OP = {v: k for k, v in OP.items()}
 ROLE_FR = {'base': 'Base', 'repeater': 'Repeater', 'remote': 'Remote'}
@@ -137,7 +138,7 @@ def vue_page2(plan):
              'lignes': [[i, n, c] for i, (n, c) in enumerate(S['groupes'], 1)]}]})
         if S['iop']:
             N.append({'chemin': racine + ['IO Plus'], 'type': 'tables', 'contenu': [
-                {'titre': 'IO Plus (livré désactivé)', 'colonnes': ['Ligne', 'Operation', 'I', 'N', 'Value/Register', 'Notes'],
+                {'titre': f"IO Plus (livré {'activé' if M.ioplus_actif(plan) else 'désactivé'})", 'colonnes': ['Ligne', 'Operation', 'I', 'N', 'Value/Register', 'Notes'],
                  'lignes': [[i, NOM_OP[l[0]], '✔' if l[1] else '', '✔' if l[2] else '', l[4], l[5]]
                             for i, l in enumerate(S['iop'], 1)]}]})
     return N
@@ -212,7 +213,7 @@ def donnees_pdf(plan):
             ('Accusés radio', f"{S['ack'][0]} × {S['ack'][1]} ms"), ('Inversion entrées / sorties',
             f"{'oui' if S['inv_entrees'] else 'non'} / {'oui' if S['inv_sorties'] else 'non'}"),
             ('MAINV', f"DI{S['mainv'].get('di', 8)}" if S['mainv'] else 'non'),
-            ('IO Plus', f"{len(S['iop'])} lignes, livré désactivé" if S['iop'] else 'aucun')]})
+            ('IO Plus', f"{len(S['iop'])} lignes, livré {'activé' if M.ioplus_actif(plan) else 'désactivé'}" if S['iop'] else 'aucun')]})
         blocs.append({'type': 'table', 'titre': 'Câblage', 'colonnes': ['E/S', 'Périphérique', 'Type', 'Registre base', 'Inversé'],
                       'lignes': [l[1:] for l in _cablage(S, plan) if l[2] != 'libre']})
         maps = ([['Read', m['nom'], _dest(plan, m['dest']), m['local'], m['distant'], m['nb'], hms0(m['offset']), m['fail']] for m in S['reads']] +
@@ -227,13 +228,20 @@ def donnees_pdf(plan):
     sections.append({'titre': '3. Plan de registres de la base', 'blocs': [
         {'type': 'table', 'titre': '', 'colonnes': ['Adresse', 'Nom', 'Type', 'Station', 'Description'],
          'lignes': [[r['adresse'], r['nom'], r['type'], r['station'], r['description']] for r in plan['registres']]}]})
-    ck = [f"Programmer les {len(st)} radios avec le .cdb (toutes dans la même intervention).",
-          'Contrôler la CfgVersion de chaque radio après programmation.',
-          f"Importer IO Plus sur {st[0]['nom']} (System Tools → Write Configuration File), puis l'activer.",
-          f"Vérifier le registre 30491 = 256 sur {st[0]['nom']}."]
-    for S in st[1:]:
-        if S['iop']:
-            ck += [f"Importer et activer IO Plus sur {S['nom']} (radar), vérifier 30491 = 256."]
+    actif = M.ioplus_actif(plan)
+    ck = [f"Programmer les {len(st)} radios (toutes dans la même intervention) : XML de chaque radio par sa page web, "
+          f"ou .cdb dans CConfig.",
+          'Contrôler la CfgVersion de chaque radio après programmation.']
+    for S in st:
+        if not S['iop']:
+            continue
+        if actif:
+            ck.append(f"{S['nom']} : IO Plus livré ACTIVÉ (XML ou .sconf) ; vérifier 30491 = 256.")
+        else:
+            ck.append(f"{S['nom']} : activer IO Plus (déjà chargé par le XML ; avec le .cdb, importer d'abord le .sconf par "
+                      f"System Tools → Write Configuration File), puis vérifier 30491 = 256.")
+    ck.append(f"{st[0]['nom']} : datalog chargé par le XML ({len(M.liste_log(plan))} entrées) ; régler Scan Rate "
+              f"{M.LOG_REGLAGES['Scan Rate']} et Records per File {M.LOG_REGLAGES['Records per File']} (absents du XML).")
     for S in st[1:]:
         ck.append(f"{S['nom']} : couper la radio → comflag 151{S['xx']} = 1 en moins de {plan['T'] + 30} s, puis retour à 0 après rétablissement.")
         for d in S['detections']:

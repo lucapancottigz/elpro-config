@@ -752,6 +752,73 @@ def main():
     dialogs.choisir(d.cb_type, 'SORTIE_ANA')
     verifier(actives(d.champs['ao']) == [2] and d.ed_nom.text() == 'AO2', 'AO1 déjà prise : grisée, AO2 proposée')
 
+    print('XML des radios et option IO Plus (moteur v2.1)')
+    import xml.etree.ElementTree as ET
+
+    def xml_radio(dossier, radio):
+        return ET.parse(os.path.join(dossier, f'Demo_Site_B_V{p1.projet["version_config"]}_{radio}.xml')).getroot()
+
+    def groupe(racine, nom):
+        return next((g for g in racine.iter('group') if g.get('name') == nom), None)
+
+    def valeur(g, item):
+        return next(i.findtext('val') for i in g.iter('item') if i.get('name') == item)
+
+    def exporter(nom, export):
+        dossier = os.path.join(tmp, nom); os.makedirs(dossier); REPONSES['dossier'] = dossier
+        MESSAGES.clear(); export()
+        return dossier, sorted(os.listdir(dossier))
+
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
+    MESSAGES.clear()
+    F.generer()
+    verifier(F.statusBar().currentMessage() == 'Configuration générée — version V1.0 (aucune modification)'
+             and not p1.ck_ioplus.isChecked() and 'ioplus_actif' not in p1.projet['systeme'] and p2.lb_ioplus.isHidden(),
+             'projet existant sans l\'option : case décochée, « aucune modification », pas d\'indication IO Plus')
+    d_xml, xmls = exporter('xml_b', p2._export_xml)
+    radios_b = [r['nom'] for r in p1.projet['radios']]
+    verifier(xmls == sorted(f'Demo_Site_B_V1.0_{r}.xml' for r in radios_b) and len(xmls) == 9,
+             'demo_site_B : 9 fichiers Demo_Site_B_V1.0_<radio>.xml')
+    m = dernier('box')
+    verifier(m and 'IO Plus : désactivé' in m[2] and 'Scan Rate 30' in m[2] and 'Records per File 2880' in m[2],
+             'message de fin : liste, « IO Plus : désactivé », Scan Rate 30 / Records per File 2880')
+    base = xml_radio(d_xml, 'B-BASE')
+    log = groupe(base, 'DataLog')
+    verifier(valeur(base, 'DeviceName') == 'B-BASE' and log is not None and len(log.findall('.//tr')) == 16
+             and valeur(groupe(base, 'Logic'), 'Enabled') == '0',
+             'B-BASE.xml : DeviceName B-BASE, DataLog 16 lignes, Logic/Enabled = 0')
+    verifier(groupe(xml_radio(d_xml, 'B-SM1'), 'DataLog') is None, 'B-SM1.xml : pas de groupe DataLog')
+
+    REPONSES['question'] = QMessageBox.No
+    MESSAGES.clear()
+    p1.ck_ioplus.click()
+    verifier(dernier('question') and 'IO Plus sera active' in dernier('question')[2] and not p1.ck_ioplus.isChecked()
+             and not M.ioplus_actif(p1.projet), 'cocher IO Plus : confirmation ; Non → case décochée')
+    REPONSES['question'] = QMessageBox.Yes
+    p1.ck_ioplus.click()
+    verifier(p1.ck_ioplus.isChecked() and p1.projet['systeme']['ioplus_actif'] is True
+             and p1.lb_version.text() == 'Modification mineure — prochaine génération : V1.1',
+             'Oui → ioplus_actif = true, libellé mineure V1.1')
+    F.generer()
+    _d, sconf = exporter('sconf_actif', p2._export_sconf)
+    d_xml, _x = exporter('xml_actif', p2._export_xml)
+    import views
+    pdf_iop = [v for s in views.donnees_pdf(p2.plan) for b in s['blocs'] if b['type'] == 'formulaire'
+               for k, v in b['contenu'] if k == 'IO Plus' and v != 'aucun']
+    verifier(p1.projet['version_config'] == '1.1' and sconf and all(f.endswith('_ACTIVE.sconf') and '_DESACTIVE' not in f for f in sconf)
+             and valeur(groupe(xml_radio(d_xml, 'B-BASE'), 'Logic'), 'Enabled') == '1',
+             'IO Plus activé : V1.1, .sconf _ACTIVE, B-BASE.xml Logic/Enabled = 1')
+    verifier(not p2.lb_ioplus.isHidden() and 'IO Plus : activé' in dernier('box')[2]
+             and pdf_iop and all('livré activé' in v for v in pdf_iop),
+             'IO Plus activé : page 2 « IO Plus : activé », message d\'export et PDF « livré activé »')
+    p1.ck_ioplus.click()
+    F.generer()
+    _d, sconf = exporter('sconf_desactive', p2._export_sconf)
+    verifier(p1.projet['version_config'] == '1.2' and p1.projet['systeme']['ioplus_actif'] is False
+             and sconf and all(f.endswith('_DESACTIVE.sconf') for f in sconf) and p2.lb_ioplus.isHidden(),
+             'décocher : V1.2 (mineure), .sconf _DESACTIVE')
+    REPONSES['question'] = QMessageBox.Discard
+
     print()
     print(f'{len(ECHECS)} échec(s)' if ECHECS else 'Recette interface : tout est OK')
     QSettings().clear()

@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="utf-8"?>
+<group name="E2Config">
+  <group name="networking">
+    <group name="eth0">
+      <item name="Enabled">
+        <val><![CDATA[1]]></val>
+      </item>
+      <item name="IP_Address">
+        <val><![CDATA[192.168.1.100]]></val>
+      </item>
+      <item name="primaryDNS">
+        <val><![CDATA[8.8.8.8]]></val>
+      </item>
+      <item name="secondaryDNS">
+        <val><![CDATA[8.8.4.4]]></val>
+      </item>
+      <item name="IP_Netmask">
+        <val><![CDATA[255.255.255.0]]></val>
+      </item>
+    </group>
+    <group name="wifi0">
+      <group name="WPA">
+        <item name="Passphrase">
+          <val><![CDATA[]]></val>
+        </item>
+      </group>
+      <group name="Radio">
+        <item name="Bandwidth">
+          <val><![CDATA[2]]></val>
+        </item>
+        <item name="TXPower">
+          <val><![CDATA[34]]></val>
+        </item>
+        <item name="Modulation">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Data_Rates_0_0">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Data_Rates_1_0">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Data_Rates_2_0">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Data_Rates_0_1">
+          <val><![CDATA[4]]></val>
+        </item>
+        <item name="Data_Rates_1_1">
+          <val><![CDATA[4]]></val>
+        </item>
+        <item name="Data_Rates_2_1">
+          <val><![CDATA[4]]></val>
+        </item>
+        <item name="Base_Rates_0_0">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Base_Rates_1_0">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Base_Rates_2_0">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Base_Rates_0_1">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Base_Rates_1_1">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Base_Rates_2_1">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Rx_Frequency">
+          <val><![CDATA[433.925]]></val>
+        </item>
+        <item name="Tx_Frequency">
+          <val><![CDATA[433.925]]></val>
+        </item>
+        <item name="mgmt_timeout">
+          <val><![CDATA[20]]></val>
+        </item>
+      </group>
+      <item name="IP_Address">
+        <val><![CDATA[192.168.1.100]]></val>
+      </item>
+      <item name="IP_Netmask">
+        <val><![CDATA[255.255.255.0]]></val>
+      </item>
+      <item name="NetworkingMode">
+        <val><![CDATA[2]]></val>
+      </item>
+      <item name="DeviceMode">
+        <val><![CDATA[2]]></val>
+      </item>
+      <item name="RoamingRemoteEnable">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="ProMeshMode">
+        <val><![CDATA[1]]></val>
+      </item>
+      <item name="is_meshing">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="SystemName">
+        <val><![CDATA[]]></val>
+      </item>
+      <item name="UpstreamDeviceName">
+        <val><![CDATA[]]></val>
+      </item>
+      <item name="Mode">
+        <val><![CDATA[1]]></val>
+      </item>
+      <item name="ESSID">
+        <val><![CDATA[system]]></val>
+      </item>
+      <item name="Encryption">
+        <val><![CDATA[1]]></val>
+      </item>
+      <table name="wds" ncols="4" maxrows="3">
+      </table>
+      <item name="Enabled">
+        <val><![CDATA[1]]></val>
+      </item>
+      <item name="EnableHotSpot">
+        <val><![CDATA[0]]></val>
+      </item>
+    </group>
+    <group name="RedundantRepeaterControl">
+      <item name="Enable">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="DIN1SelectsPrimary">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="isPrimaryAtBoot">
+        <val><![CDATA[0]]></val>
+      </item>
+    </group>
+    <group name="bridging">
+      <item name="mode">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="stp">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="priority">
+        <val><![CDATA[32768]]></val>
+      </item>
+    </group>
+    <group name="Filter">
+      <group name="EasyFilter">
+        <item name="StartIP">
+          <val><![CDATA[192.168.1.100]]></val>
+        </item>
+        <item name="EndIP">
+          <val><![CDATA[192.168.1.100]]></val>
+        </item>
+        <item name="Enable">
+          <val><![CDATA[1]]></val>
+        </item>
+      </group>
+    </group>
+    <item name="Gateway_IP">
+      <val><![CDATA[192.168.1.1]]></val>
+    </item>
+    <group name="DHCPClient">
+      <item name="Enabled">
+        <val><![CDATA[0]]></val>
+      </item>
+    </group>
+    <table name="Routing" ncols="5" maxrows="100">
+    </table>
+  </group>
+  <group name="identification">
+    <item name="Radio" lock="locked">
+      <val><![CDATA[445]]></val>
+    </item>
+    <item name="Locale" lock="locked">
+      <val><![CDATA[GL]]></val>
+    </item>
+    <item name="DeviceName">
+      <val><![CDATA[]]></val>
+    </item>
+    <item name="Owner">
+      <val><![CDATA[]]></val>
+    </item>
+    <item name="Contact">
+      <val><![CDATA[]]></val>
+    </item>
+    <item name="Description">
+      <val><![CDATA[]]></val>
+    </item>
+    <item name="Location">
+      <val><![CDATA[]]></val>
+    </item>
+    <item name="CfgVersion">
+      <val><![CDATA[]]></val>
+    </item>
+    <item name="Username">
+      <val><![CDATA[user]]></val>
+    </item>
+    <item name="Password">
+      <val><![CDATA[user]]></val>
+    </item>
+    <item name="ProductName" lock="locked">
+      <val><![CDATA[E2CI]]></val>
+    </item>
+  </group>
+  <group name="IO">
+    <table name="AOt" ncols="5" maxrows="2">
+      <tr><val><![CDATA[AO1]]></val><val><![CDATA[-8192]]></val><val><![CDATA[0.00048828125]]></val><val><![CDATA[0]]></val><val><![CDATA[1]]></val></tr>
+      <tr><val><![CDATA[AO2]]></val><val><![CDATA[-8192]]></val><val><![CDATA[0.00048828125]]></val><val><![CDATA[0]]></val><val><![CDATA[1]]></val></tr>
+    </table>
+    <table name="AIn" ncols="8" maxrows="16">
+      <tr><val><![CDATA[AI1 (0-20mA)]]></val><val><![CDATA[8192]]></val><val><![CDATA[2048]]></val><val><![CDATA[5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[AI2 (0-20mA)]]></val><val><![CDATA[8192]]></val><val><![CDATA[2048]]></val><val><![CDATA[5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[AI3 (0-20mA)]]></val><val><![CDATA[8192]]></val><val><![CDATA[2048]]></val><val><![CDATA[5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[AI4 (0-20mA)]]></val><val><![CDATA[8192]]></val><val><![CDATA[2048]]></val><val><![CDATA[5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[Supply Voltage]]></val><val><![CDATA[8192]]></val><val><![CDATA[1024]]></val><val><![CDATA[5]]></val><val><![CDATA[16]]></val><val><![CDATA[17]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[24V Loop Supply Voltage]]></val><val><![CDATA[8192]]></val><val><![CDATA[1024]]></val><val><![CDATA[5]]></val><val><![CDATA[15]]></val><val><![CDATA[17]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[Battery Voltage]]></val><val><![CDATA[8192]]></val><val><![CDATA[1024]]></val><val><![CDATA[5]]></val><val><![CDATA[11.4]]></val><val><![CDATA[12.5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[Expansion Voltage]]></val><val><![CDATA[8192]]></val><val><![CDATA[1024]]></val><val><![CDATA[5]]></val><val><![CDATA[11.4]]></val><val><![CDATA[12.5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[AI3 (0-5V)]]></val><val><![CDATA[8192]]></val><val><![CDATA[8192]]></val><val><![CDATA[5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[AI4 (0-5V)]]></val><val><![CDATA[8192]]></val><val><![CDATA[8192]]></val><val><![CDATA[5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[AI3 (0-5V)]]></val><val><![CDATA[8192]]></val><val><![CDATA[8192]]></val><val><![CDATA[5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[AI4 (0-5V)]]></val><val><![CDATA[8192]]></val><val><![CDATA[8192]]></val><val><![CDATA[5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[PinRate1]]></val><val><![CDATA[16384]]></val><val><![CDATA[327.67999]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[PinRate2]]></val><val><![CDATA[16384]]></val><val><![CDATA[327.67999]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[PinRate3]]></val><val><![CDATA[16384]]></val><val><![CDATA[327.67999]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[PinRate4]]></val><val><![CDATA[16384]]></val><val><![CDATA[327.67999]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+    </table>
+    <item name="T_C_Type">
+      <val><![CDATA[0]]></val>
+    </item>
+    <item name="T_C_Polarity">
+      <val><![CDATA[0]]></val>
+    </item>
+    <item name="T_C_Error_Value">
+      <val><![CDATA[0]]></val>
+    </item>
+    <table name="DOt" ncols="3" maxrows="8">
+      <tr><val><![CDATA[DO1]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[DO2]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[DO3]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[DO4]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[DO5]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[DO6]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[DO7]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+      <tr><val><![CDATA[DO8]]></val><val><![CDATA[0]]></val><val><![CDATA[0]]></val></tr>
+    </table>
+    <table name="DIn" ncols="2" maxrows="8">
+      <tr><val><![CDATA[DI1]]></val><val><![CDATA[0.5]]></val></tr>
+      <tr><val><![CDATA[DI2]]></val><val><![CDATA[0.5]]></val></tr>
+      <tr><val><![CDATA[DI3]]></val><val><![CDATA[0.5]]></val></tr>
+      <tr><val><![CDATA[DI4]]></val><val><![CDATA[0.5]]></val></tr>
+      <tr><val><![CDATA[DI5]]></val><val><![CDATA[0.5]]></val></tr>
+      <tr><val><![CDATA[DI6]]></val><val><![CDATA[0.5]]></val></tr>
+      <tr><val><![CDATA[DI7]]></val><val><![CDATA[0.5]]></val></tr>
+      <tr><val><![CDATA[DI8]]></val><val><![CDATA[0.5]]></val></tr>
+    </table>
+    <table name="POt" ncols="2" maxrows="4">
+      <tr><val><![CDATA[PO1]]></val><val><![CDATA[5]]></val></tr>
+      <tr><val><![CDATA[PO2]]></val><val><![CDATA[5]]></val></tr>
+      <tr><val><![CDATA[PO3]]></val><val><![CDATA[5]]></val></tr>
+      <tr><val><![CDATA[PO4]]></val><val><![CDATA[5]]></val></tr>
+    </table>
+    <group name="IOUsrCfg">
+      <table name="IOUsrCfgTable" ncols="2" maxrows="5000">
+        <tr><val><![CDATA[30009]]></val><val><![CDATA[AI3 (0-5V)]]></val></tr>
+        <tr><val><![CDATA[30010]]></val><val><![CDATA[AI4 (0-5V)]]></val></tr>
+      </table>
+    </group>
+  </group>
+  <group name="locale">
+    <item name="445_Locales">
+      <val><![CDATA[1]]></val>
+    </item>
+  </group>
+  <group name="Security">
+    <item name="WebserverAccess">
+      <val><![CDATA[1]]></val>
+    </item>
+  </group>
+  <group name="Configuration">
+    <item name="Type">
+      <val><![CDATA[E2CI]]></val>
+    </item>
+    <item name="Version_major">
+      <val><![CDATA[1]]></val>
+    </item>
+    <item name="Version_minor">
+      <val><![CDATA[4]]></val>
+    </item>
+  </group>
+  <group name="DataLog">
+    <table name="Records" ncols="4" maxrows="100">
+    </table>
+  </group>
+  <group name="DateTime">
+    <item name="NTPEnabled">
+      <val><![CDATA[1]]></val>
+    </item>
+    <item name="NTPServerAddress">
+      <val><![CDATA[195.176.26.204]]></val>
+    </item>
+  </group>
+  <group name="serial">
+    <group name="ttyS0">
+      <item name="DataRate">
+        <val><![CDATA[6]]></val>
+      </item>
+      <item name="DataParityStop">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="FlowCtrl">
+        <val><![CDATA[0]]></val>
+      </item>
+      <group name="modbus">
+        <table name="RTUMappings" ncols="6" maxrows="100">
+        </table>
+      </group>
+      <item name="Mode">
+        <val><![CDATA[0]]></val>
+      </item>
+    </group>
+    <group name="ttyS1">
+      <item name="DataRate">
+        <val><![CDATA[6]]></val>
+      </item>
+      <item name="DataParityStop">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="FlowCtrl">
+        <val><![CDATA[0]]></val>
+      </item>
+      <group name="modbus">
+        <table name="RTUMappings" ncols="6" maxrows="100">
+        </table>
+      </group>
+      <item name="Mode">
+        <val><![CDATA[0]]></val>
+      </item>
+    </group>
+  </group>
+  <group name="modbus">
+    <group name="Server">
+      <item name="Enabled">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="DeviceId">
+        <val><![CDATA[1]]></val>
+      </item>
+    </group>
+    <group name="Client">
+      <item name="Enabled">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="ScanRate">
+        <val><![CDATA[1000]]></val>
+      </item>
+      <table name="Mappings" ncols="9" maxrows="200">
+      </table>
+    </group>
+    <group name="modbusUDP">
+      <group name="Server">
+        <item name="Enabled">
+          <val><![CDATA[0]]></val>
+        </item>
+        <item name="DeviceId">
+          <val><![CDATA[1]]></val>
+        </item>
+      </group>
+      <group name="Client">
+        <item name="Enabled">
+          <val><![CDATA[0]]></val>
+        </item>
+        <item name="ScanRate">
+          <val><![CDATA[1000]]></val>
+        </item>
+        <item name="MaxFail">
+          <val><![CDATA[1]]></val>
+        </item>
+        <item name="Attempts">
+          <val><![CDATA[1]]></val>
+        </item>
+        <table name="Mappings" ncols="9" maxrows="500">
+        </table>
+      </group>
+    </group>
+  </group>
+  <group name="DNP3">
+    <group name="Outstation">
+      <item name="Enabled">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="Address">
+        <val><![CDATA[4]]></val>
+      </item>
+      <item name="ConnectionType">
+        <val><![CDATA[1]]></val>
+      </item>
+      <item name="MasterIPAddress">
+        <val><![CDATA[]]></val>
+      </item>
+      <item name="OutstationPort">
+        <val><![CDATA[20000]]></val>
+      </item>
+      <item name="MasterAddress">
+        <val><![CDATA[3]]></val>
+      </item>
+      <item name="MasterPort">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="InitialUDPPort">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="KeepAlive">
+        <val><![CDATA[600]]></val>
+      </item>
+      <table name="BinaryInput" ncols="2" maxrows="600">
+        <tr><val><![CDATA[10001]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[10002]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[10003]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[10004]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[10005]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[10006]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[10007]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[10008]]></val><val><![CDATA[1]]></val></tr>
+      </table>
+      <table name="BinaryOutput" ncols="2" maxrows="600">
+        <tr><val><![CDATA[1]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[2]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[3]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[4]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[5]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[6]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[7]]></val><val><![CDATA[1]]></val></tr>
+        <tr><val><![CDATA[8]]></val><val><![CDATA[1]]></val></tr>
+      </table>
+      <table name="Counters" ncols="3" maxrows="20">
+        <tr><val><![CDATA[36001]]></val><val><![CDATA[1]]></val><val><![CDATA[100]]></val></tr>
+        <tr><val><![CDATA[36003]]></val><val><![CDATA[1]]></val><val><![CDATA[100]]></val></tr>
+        <tr><val><![CDATA[36005]]></val><val><![CDATA[1]]></val><val><![CDATA[100]]></val></tr>
+        <tr><val><![CDATA[36007]]></val><val><![CDATA[1]]></val><val><![CDATA[100]]></val></tr>
+      </table>
+      <table name="AnalogInput" ncols="7" maxrows="600">
+        <tr><val><![CDATA[30001]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[4000]]></val><val><![CDATA[20000]]></val></tr>
+        <tr><val><![CDATA[30002]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[4000]]></val><val><![CDATA[20000]]></val></tr>
+        <tr><val><![CDATA[30003]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[4000]]></val><val><![CDATA[20000]]></val></tr>
+        <tr><val><![CDATA[30004]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[4000]]></val><val><![CDATA[20000]]></val></tr>
+        <tr><val><![CDATA[30005]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[8192]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[40000]]></val></tr>
+        <tr><val><![CDATA[30006]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[8192]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[40000]]></val></tr>
+        <tr><val><![CDATA[30007]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[8192]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[40000]]></val></tr>
+        <tr><val><![CDATA[30008]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[8192]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[40000]]></val></tr>
+        <tr><val><![CDATA[30009]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[8192]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[20000]]></val></tr>
+        <tr><val><![CDATA[30010]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[8192]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[20000]]></val></tr>
+        <tr><val><![CDATA[30011]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[5000]]></val></tr>
+        <tr><val><![CDATA[30012]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[5000]]></val></tr>
+        <tr><val><![CDATA[30013]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[1000]]></val></tr>
+        <tr><val><![CDATA[30014]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[1000]]></val></tr>
+        <tr><val><![CDATA[30015]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[1000]]></val></tr>
+        <tr><val><![CDATA[30016]]></val><val><![CDATA[1]]></val><val><![CDATA[1000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val><val><![CDATA[0]]></val><val><![CDATA[1000]]></val></tr>
+      </table>
+      <table name="AnalogOutput" ncols="6" maxrows="600">
+        <tr><val><![CDATA[40001]]></val><val><![CDATA[1]]></val><val><![CDATA[4000]]></val><val><![CDATA[20000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val></tr>
+        <tr><val><![CDATA[40002]]></val><val><![CDATA[1]]></val><val><![CDATA[4000]]></val><val><![CDATA[20000]]></val><val><![CDATA[16384]]></val><val><![CDATA[49152]]></val></tr>
+      </table>
+    </group>
+  </group>
+  <group name="FailSafe">
+    <table name="ConfigTable" ncols="7" maxrows="50">
+    </table>
+  </group>
+  <group name="ELPROMesh">
+    <item name="AckTxCount">
+      <val><![CDATA[3]]></val>
+    </item>
+    <item name="NoAckTxCount">
+      <val><![CDATA[1]]></val>
+    </item>
+    <item name="AckTimeout">
+      <val><![CDATA[2000]]></val>
+    </item>
+    <table name="Sensitivity" ncols="3" maxrows="50">
+      <tr><val><![CDATA[30001]]></val><val><![CDATA[12]]></val><val><![CDATA[1000]]></val></tr>
+      <tr><val><![CDATA[38001]]></val><val><![CDATA[24]]></val><val><![CDATA[0.5]]></val></tr>
+    </table>
+    <table name="WriteMapping" ncols="15" maxrows="200">
+    </table>
+    <table name="ReadMapping" ncols="12" maxrows="200">
+    </table>
+    <table name="ScatterMapping" ncols="76" maxrows="200">
+    </table>
+  </group>
+  <group name="HMI">
+    <item name="Enabled">
+      <val><![CDATA[1]]></val>
+    </item>
+    <item name="PageTitle">
+      <val><![CDATA[]]></val>
+    </item>
+    <item name="DisplayCfgLink">
+      <val><![CDATA[1]]></val>
+    </item>
+    <item name="BackgroundColor">
+      <val><![CDATA[0]]></val>
+    </item>
+    <item name="OverlayColor">
+      <val><![CDATA[13]]></val>
+    </item>
+    <table name="Tags" ncols="13" maxrows="50">
+    </table>
+    <table name="Switches" ncols="3" maxrows="50">
+    </table>
+    <table name="Groups" ncols="2" maxrows="10">
+    </table>
+  </group>
+  <group name="Logic">
+    <item name="Enabled">
+      <val><![CDATA[0]]></val>
+    </item>
+    <table name="StatementList" ncols="6" maxrows="300">
+    </table>
+  </group>
+  <group name="MQTT">
+    <group name="Conf">
+      <item name="Enabled">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="mqtt_comms">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="fifo">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="NodeUpdate">
+        <val><![CDATA[300]]></val>
+      </item>
+      <item name="primaryhost">
+        <val><![CDATA[SCADA_IIoT]]></val>
+      </item>
+    </group>
+    <group name="Sparkplug">
+      <item name="Enabled">
+        <val><![CDATA[0]]></val>
+      </item>
+      <item name="topicPre">
+        <val><![CDATA[ELPRO/]]></val>
+      </item>
+    </group>
+    <table name="DeviceConfig" ncols="5" maxrows="20">
+    </table>
+    <table name="Outgoing" ncols="11" maxrows="1000">
+    </table>
+    <table name="incomming" ncols="11" maxrows="1000">
+    </table>
+    <table name="Broker" ncols="12" maxrows="4">
+    </table>
+  </group>
+</group>
