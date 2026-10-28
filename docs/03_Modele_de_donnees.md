@@ -89,7 +89,7 @@ Chaque élément a un `type`, un `nom` (1 à 15 caractères `A-Z a-z 0-9 _`, uni
 | `SPOT` | Spot | `do` | |
 | `CAMERA_SPOT` | Caméra + spot (1 commande) | `do_camera`, `do_spot` | `{"type":"CAMERA_SPOT","nom":"CAM","do_camera":1,"do_spot":2}` |
 | `SORTIE` | Sortie générique | `do` | |
-| `ENTREE_ANA` | Entrée analogique (mesure) | `ai` : 1 à 4 ; `mode` : `courant` (0-20 mA, AI1–AI4) ou `tension` (0-5 V, **AI3 ou AI4 seulement**) ; échelle facultative : `mesure_bas`, `mesure_haut` (valeur à 4 mA et à 20 mA en courant, à 0 V et à 5 V en tension), `unite` (1 à 8 caractères) | `{"type":"ENTREE_ANA","nom":"BATT_CAM","ai":4,"mode":"tension","mesure_bas":0,"mesure_haut":48,"unite":"V"}` |
+| `ENTREE_ANA` | Entrée analogique (mesure) | `ai` : 1 à 4 ; `mode` : `courant` (0-20 mA, AI1–AI4) ou `tension` (0-5 V, **AI3 ou AI4 seulement**) ; échelle facultative : `mesure_bas`, `mesure_haut` (valeur à 4 mA et à 20 mA en courant, à 0 V et à 5 V en tension), `unite` (1 à 8 caractères) ; réglages avancés facultatifs `etalonnage` et `alarme_radio` (voir plus bas) | `{"type":"ENTREE_ANA","nom":"BATT_CAM","ai":4,"mode":"tension","mesure_bas":0,"mesure_haut":48,"unite":"V"}` |
 | `SORTIE_ANA` | Sortie analogique 4-20 mA | `ao` : 1 ou 2 ; échelle facultative `mesure_bas`, `mesure_haut` (valeur à 4 et à 20 mA), `unite` | `{"type":"SORTIE_ANA","nom":"VANNE","ao":1}` |
 
 **Ancien format du feu** (`do_orange`, avant la v1.5 du moteur) : `M.normaliser_projet(projet)` le convertit en `do_orange_cli` (l'ancien orange était un orange clignotant) et ajoute `do_orange_fixe: null`. `M.valider`, `M.calculer_plan` et `M.preparer_generation` appliquent cette conversion d'eux-mêmes ; l'interface l'appelle à l'ouverture pour que le fichier enregistré soit au nouveau format.
@@ -103,6 +103,15 @@ Chaque élément a un `type`, un `nom` (1 à 15 caractères `A-Z a-z 0-9 _`, uni
 **Tableau de bord de la base** (50 éléments au maximum, limite ELPRO) : toutes les alarmes (détections) et tous les radars ; **une seule commande de chaque genre** (feu rouge, orange clignotant, orange fixe, vert, sirène, flash, caméra…, la première du site) ; tous les BATTV, MAINV, RSSI et comflags. S'il y a plus de 50 éléments, les RSSI sont retirés et `plan['avertissements']` contient un message.
 
 **Entrées et sorties analogiques génériques (moteur v2.0)** : mesure seule, **sans alarme** (les alarmes éventuelles sont faites par le datalogger). Registres de la base : mesures **35301–35350** (valeur brute : 16384 = 4 mA, 49152 = 20 mA en courant ; 8192 = 0 V, 49152 = 5 V en tension), consignes **45001–45020** (écrites par la supervision, recopiées vers l'AO de la radio : 16384 = 4 mA, 49152 = 20 mA), échec de lecture **158xx** (non listé, comme les autres registres d'échec). Numérotation dans l'ordre des radios puis des AI/AO. Au plus 50 entrées et 20 sorties analogiques sur le site. Une AI sert soit à un radar, soit à une entrée analogique.
+
+**Réglages avancés d'une entrée analogique (moteur v2.3)** : deux clés facultatives, les mêmes réglages que dans CConfig. Clé absente = réglage standard (fichiers identiques à la v2.2).
+
+| Clé | Contenu | Effet |
+|---|---|---|
+| `etalonnage` | `{"reg_bas": 8192, "reg_haut": 30720, "eng_bas": 0, "eng_haut": 25}` : registres entiers 0–65535, `reg_bas < reg_haut`, `eng_bas ≠ eng_haut` | Écrit Zero, Span, RegLow, RegHigh, EngLow, EngHigh de l'E/S de la radio (`Span = (reg_haut − reg_bas) / (eng_haut − eng_bas)`, calculé par `M.reglages_ai`). Donne aussi l'échelle du registre 353nn (tableau de bord, description) : **ne se cumule pas** avec `mesure_bas` / `mesure_haut`. `unite` par défaut `V` |
+| `alarme_radio` | `{"bas": 11.4, "haut": 14.6, "fenetre": 0}` : `bas ≤ haut`, `fenetre` 0 ou 1 | Écrit SPLow, SPHigh, SPWindow de l'E/S ; repris comme alarmes basse / haute du tag du tableau de bord |
+
+Le nom de l'entrée dans la radio (IO et nom des registres 30009/30010 en tension) est celui du périphérique. Modifier ces réglages est une modification **mineure** (aucun registre ne bouge). Exemple : batterie d'une caméra sur l'AI4 de la base, 0–25 V sur 8192–30720, alarmes 11,4 / 14,6 V.
 
 **Noms** : les noms de registres et de tags du tableau de bord sont limités à 15 caractères (`M.NOM_MAX`) et uniques, construits par `M.nom_court(station, libellé)`. Au-delà, la radio affiche un nom d'E/S par défaut à la place (constaté sur radio : un tag de 16 caractères est remplacé par DIn1, DOut5…).
 

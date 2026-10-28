@@ -821,6 +821,67 @@ def main():
              'décocher : V1.2 (mineure), .sconf _DESACTIVE')
     REPONSES['question'] = QMessageBox.Discard
 
+    print('Réglages avancés d\'une entrée analogique (moteur v2.3)')
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))
+    F.generer()                                       # V1.0
+    etats = {}
+
+    def batt_cam(d):
+        dialogs.choisir(d.cb_type, 'ENTREE_ANA'); dialogs.choisir(d.champs['mode'], 'tension')
+        dialogs.choisir(d.champs['ai'], 4); d.ed_nom.setText('BATT_CAM')
+        c = d.champs
+        etats['replie'] = not c['avances'].isChecked() and not c['etalonnage'].isChecked() and not c['alarme_radio'].isChecked()
+        c['echelle'].setChecked(True)
+        c['avances'].setChecked(True); c['etalonnage'].setChecked(True)
+        etats['echelle'] = not c['echelle'].isChecked() and not c['echelle'].isEnabled() and c['unite'].isEnabled()
+        etats['unite'] = c['unite'].text()
+        c['reg_bas'].setValue(8192); c['reg_haut'].setValue(30720); c['eng_bas'].setValue(0); c['eng_haut'].setValue(25)
+        c['alarme_radio'].setChecked(True); c['al_bas'].setValue(11.4); c['al_haut'].setValue(14.6)
+        etats['span'] = c['span'].text()
+    d, cam = ajouter_periph(0, batt_cam)
+    verifier(etats['replie'], 'entrée analogique : groupe « Réglages avancés de la radio » replié, cases décochées')
+    verifier(etats['echelle'] and etats['unite'] == 'V',
+             'cocher Étalonnage : Échelle décochée et grisée, unité utilisable (V par défaut)')
+    verifier(etats['span'] == 'Span calculé : 901,12', 'étalonnage 8192 / 30720 / 0 / 25 : « Span calculé : 901,12 »')
+    verifier(cam == {'type': 'ENTREE_ANA', 'nom': 'BATT_CAM', 'ai': 4, 'mode': 'tension', 'unite': 'V',
+                     'etalonnage': {'reg_bas': 8192, 'reg_haut': 30720, 'eng_bas': 0, 'eng_haut': 25},
+                     'alarme_radio': {'bas': 11.4, 'haut': 14.6, 'fenetre': 0}},
+             'JSON : clés etalonnage et alarme_radio, pas de mesure_bas / mesure_haut')
+    verifier(p1.tab_periph.item(len(p1.radio_courante()['peripheriques']) - 1, 2).text() == 'AI4 — tension, étalonnage',
+             'câblage « AI4 — tension, étalonnage »')
+    MESSAGES.clear()
+    F.generer()
+    reg = next((r for r in p2.plan['registres'] if r['adresse'] == 35301), {})
+    tag = next((t for t in p2.plan['stations'][0]['tags'] if t['registre'] == 35301), {})
+    verifier(not dernier('warning') and 'AI4 tension, étalonnage : 8192 = 0 V, 30720 = 25 V' in reg.get('description', ''),
+             'Générer : registre 35301 « AI4 tension, étalonnage : 8192 = 0 V, 30720 = 25 V »')
+    verifier((tag.get('unites'), tag.get('haut'), tag.get('bas')) == ('V', '14.6', '11.4'),
+             'tableau de bord : BATT_CAM en V, alarmes 14,6 / 11,4')
+    d_xml, xmls = exporter('xml_batt', p2._export_xml)
+    base_a = ET.parse(os.path.join(d_xml, next(f for f in xmls if f.endswith('_A-BASE.xml')))).getroot()
+    lignes = [[c.text for c in tr] for tr in base_a.iter('tr')]
+    verifier(['BATT_CAM', '8192', '901.12', '5', '11.4', '14.6', '0', '0'] in lignes,
+             'XML de A-BASE : ligne AIn BATT_CAM | 8192 | 901.12 | 5 | 11.4 | 14.6 | 0 | 0')
+
+    k = len(p1.radio_courante()['peripheriques']) - 1
+    dialogs.DialoguePeripherique.exec = lambda self: QDialog.Accepted
+
+    def init_seuil(self, *a, **kw):
+        orig_init(self, *a, **kw)
+        c = self.champs
+        etats['relu'] = (c['avances'].isChecked() and c['etalonnage'].isChecked() and c['reg_haut'].value() == 30720
+                         and c['eng_haut'].value() == 25 and c['al_bas'].value() == 11.4 and c['unite'].text() == 'V'
+                         and not c['echelle'].isEnabled())
+        c['al_haut'].setValue(15)
+    dialogs.DialoguePeripherique.__init__ = init_seuil
+    p1._modifier_periph(k)
+    dialogs.DialoguePeripherique.__init__ = orig_init
+    dialogs.DialoguePeripherique.exec = orig_exec
+    verifier(etats['relu'], 'rouvrir le périphérique : réglages relus, groupe déplié, Échelle grisée')
+    verifier(p1.radio_courante()['peripheriques'][k]['alarme_radio']['haut'] == 15
+             and p1.lb_version.text().startswith('Modification mineure'), 'seuil haut seul changé : modification mineure')
+    REPONSES['question'] = QMessageBox.Discard
+
     print()
     print(f'{len(ECHECS)} échec(s)' if ECHECS else 'Recette interface : tout est OK')
     QSettings().clear()

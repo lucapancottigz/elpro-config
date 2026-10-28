@@ -2,6 +2,11 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.6.0] — 2026-10-27
+
+### Ajouté
+- Entrée analogique : groupe repliable **« Réglages avancés de la radio »** avec l'**étalonnage** de l'entrée (registre bas / haut ↔ valeur basse / haute, d'où Zero et Span de la radio, « Span calculé » affiché) et les **seuils d'alarme de la radio** (seuil bas, seuil haut, fenêtre), écrits dans le `.cdb` et le XML. L'étalonnage donne aussi l'échelle du registre 353nn ; les seuils sont repris comme alarmes du tableau de bord. Sans ces réglages, les fichiers générés ne changent pas.
+
 ## [1.5.0] — 2026-10-26
 
 ### Ajouté

@@ -611,5 +611,62 @@ class TestXmlRadio(unittest.TestCase):
             M.xml_radio(plan, plan['stations'][0])
 
 
+class TestReglagesAI(unittest.TestCase):
+    """Étalonnage et seuils radio d'une entrée analogique (moteur v2.3)."""
+
+    def projet(self, **reg):
+        p = charger('demo_site_A')
+        b = next(r for r in p['radios'] if r['role'] == 'base')
+        b['peripheriques'].append(dict({'type': 'ENTREE_ANA', 'nom': 'BATT_CAM', 'ai': 4, 'mode': 'tension',
+                                        'etalonnage': {'reg_bas': 8192, 'reg_haut': 30720, 'eng_bas': 0, 'eng_haut': 25},
+                                        'alarme_radio': {'bas': 11.4, 'haut': 14.6, 'fenetre': 0}}, **reg))
+        return p
+
+    def test_plan_cdb_xml(self):
+        p = self.projet(); self.assertEqual(M.valider(p), [])
+        plan = M.calculer_plan(p); B = plan['stations'][0]; A = B['ana'][0]
+        self.assertEqual((A['adresse'], A['distant'], A['io']), (35301, 30010, 'Ain6'))
+        self.assertIn((30010, 'BATT_CAM'), B['noms_registres'])
+        self.assertNotIn((30010, 'AI4 (0-5V)'), B['noms_registres'])
+        self.assertEqual(A['reglages'], {'Zero': '8192', 'Span': '901.12', 'RegLow': 8192, 'RegHigh': 30720, 'EngLow': '0',
+                                         'EngHigh': '25', 'SPLow': '11.4', 'SPHigh': '14.6', 'SPWindow': 0})
+        reg = next(r for r in plan['registres'] if r['adresse'] == 35301)
+        self.assertIn('8192 = 0 V, 30720 = 25 V', reg['description'])
+        t = next(t for t in B['tags'] if t['registre'] == 35301)
+        self.assertEqual((t['rp1'], t['rp2'], t['dp1'], t['dp2'], t['haut'], t['bas']), (8192, 30720, '0', '25', '14.6', '11.4'))
+        with tempfile.TemporaryDirectory() as d:
+            c = M.ecrire_cdb(plan, os.path.join(d, 'x.cdb'))
+            txt = Path(c).read_text(encoding='utf-16')
+        u = txt[txt.find('name="A-BASE"'):]; io = u[u.find('<IO ID="Ain6">'):]; io = io[:io.find('</IO>')]
+        for champ, val in (('Name', 'BATT_CAM'), ('Zero', '8192'), ('Span', '901.12'), ('RegHigh', '30720'),
+                           ('EngHigh', '25'), ('SPLow', '11.4'), ('SPHigh', '14.6'), ('SPWindow', '0')):
+            self.assertRegex(io, rf'<{champ}(?: d="C")?>{re.escape(val)}</{champ}>', champ)
+        I, Tb = TestXmlRadio.plat(M.xml_radio(plan, B))
+        self.assertEqual(Tb['/IO/AIn'][9], ['BATT_CAM', '8192', '901.12', '5', '11.4', '14.6', '0', '0'])
+
+    def test_sans_reglages_inchange(self):
+        p = self.projet(); b = p['radios'][0]['peripheriques'][-1]
+        del b['etalonnage'], b['alarme_radio']
+        plan = M.calculer_plan(p)
+        self.assertEqual(plan['stations'][0]['ana'][0]['reglages'], {})
+        I, Tb = TestXmlRadio.plat(M.xml_radio(plan, plan['stations'][0]))
+        self.assertEqual(Tb['/IO/AIn'][9], ['BATT_CAM', '8192', '8192', '5', '0', '0', '0', '0'])
+
+    def test_validation(self):
+        mauvais = [{'etalonnage': {'reg_bas': 30720, 'reg_haut': 8192, 'eng_bas': 0, 'eng_haut': 25}},
+                   {'etalonnage': {'reg_bas': 8192, 'reg_haut': 30720, 'eng_bas': 5, 'eng_haut': 5}},
+                   {'etalonnage': {'reg_bas': 8192.5, 'reg_haut': 30720, 'eng_bas': 0, 'eng_haut': 25}},
+                   {'mesure_bas': 0, 'mesure_haut': 10},
+                   {'alarme_radio': {'bas': 15, 'haut': 11}},
+                   {'alarme_radio': {'bas': 11, 'haut': 15, 'fenetre': 2}}]
+        for m in mauvais:
+            with self.subTest(m):
+                self.assertTrue(M.valider(self.projet(**m)), m)
+        q = self.projet(); a = charger('demo_site_A')
+        self.assertEqual(M.classer_modification(a, q), 'majeure')
+        r = json.loads(json.dumps(q)); r['radios'][0]['peripheriques'][-1]['alarme_radio']['haut'] = 15
+        self.assertEqual(M.classer_modification(q, r), 'mineure')
+
+
 if __name__ == '__main__':
     unittest.main()
