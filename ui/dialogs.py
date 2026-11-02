@@ -44,9 +44,8 @@ SEUILS_RADAR = (('seuil_haut_ma', 'Seuil haut', (4.1, 19.9), 12.0, False),
                 ('hysteresis_ma', 'Hystérésis', (0.1, 15.8), 0.8, True),
                 ('variation_ma', 'Variation déclenchant un envoi', (0.1, 8.0), 0.8, True))
 ECHELLE_DEFAUT = {'mesure_4ma': 0.0, 'mesure_20ma': 1000.0, 'unite': 'cm'}
-# Entrée analogique : (libellé du mode, entrées proposées, libellés des valeurs d'échelle, texte de câblage)
-MODES_ANA = {'courant': ('Courant 0-20 mA', [1, 2, 3, 4], ('Valeur à 4 mA', 'Valeur à 20 mA'), '0-20 mA'),
-             'tension': ('Tension 0-5 V', [3, 4], ('Valeur à 0 V', 'Valeur à 5 V'), '0-5 V')}
+# Entrée analogique : libellé du mode ; AI1-AI4 dans les deux modes (tension : AI1/AI2 0-20 V, AI3/AI4 0-5 V)
+MODES_ANA = {'courant': 'Courant 0-20 mA', 'tension': 'Tension (AI1/AI2 0-20 V, AI3/AI4 0-5 V)'}
 # Valeur haute proposée pour l'étalonnage d'une entrée analogique (5 V en tension, 20 mA en courant)
 ETALONNAGE_HAUT = {'courant': 20.0, 'tension': 5.0}
 NOM_FIXE = {'LIDAR3': 'LIDAR', 'LIDAR6': 'LIDAR', 'ALARME_BT': 'BT_ALARME', 'SIRENE': 'SIRENE', 'FLASH': 'FLASH',
@@ -63,6 +62,17 @@ def _plage(prefixe, valeurs):
     if len(v) > 1 and v == list(range(v[0], v[0] + len(v))):
         return f'{prefixe}{v[0]}-{prefixe}{v[-1]}'
     return ', '.join(f'{prefixe}{x}' for x in v)
+
+
+def gamme_ana(mode, ai):
+    """Gamme de l'entrée : '0-20 mA', '0-20 V' (AI1/AI2) ou '0-5 V' (AI3/AI4)."""
+    return '0-20 mA' if mode != 'tension' else f"0-{M.points_ai({'mode': mode, 'ai': ai})[3]} V"
+
+
+def libelles_echelle_ana(mode, ai):
+    """Libellés des valeurs d'échelle : « Valeur à 4 mA / 20 mA », « à 0 V / 20 V » ou « à 0 V / 5 V »."""
+    _r1, _r2, bas, haut, u = M.points_ai({'mode': mode, 'ai': ai})
+    return f'Valeur à {nombre_fr(bas)} {u}', f'Valeur à {nombre_fr(haut)} {u}'
 
 
 def texte_cablage(p):
@@ -86,7 +96,7 @@ def texte_cablage(p):
     if t == 'ENTREE_ANA':
         if p.get('etalonnage'):
             return f"AI{p.get('ai')} — {p.get('mode', 'courant')}, étalonnage"
-        return f"AI{p.get('ai')} — {MODES_ANA.get(p.get('mode', 'courant'), MODES_ANA['courant'])[3]}"
+        return f"AI{p.get('ai')} — {gamme_ana(p.get('mode', 'courant'), p.get('ai'))}"
     if t == 'SORTIE_ANA':
         return f"AO{p.get('ao')}"
     return ''
@@ -310,7 +320,7 @@ class DialoguePeripherique(QDialog):
             self._champs_radar(p)
         elif t == 'ENTREE_ANA':
             mode = QComboBox()
-            for k, (lib, *_r) in MODES_ANA.items():
+            for k, lib in MODES_ANA.items():
                 mode.addItem(lib, k)
             choisir(mode, p.get('mode', 'courant') if p else 'courant')
             self.form.addRow('Mode', mode)
@@ -318,7 +328,7 @@ class DialoguePeripherique(QDialog):
             cb = self._combo('Entrée', 'ai', 'AI', [], {})
             self._entrees_ana(p.get('ai') if p else None)
             mode.currentIndexChanged.connect(lambda _: self._mode_ana_modifie())
-            cb.currentIndexChanged.connect(lambda _: self._proposer_nom())
+            cb.currentIndexChanged.connect(lambda _: self._entree_ana_modifiee())
             self._champs_echelle_ana(p)
             self._reglages_avances_ana(p)
         elif t == 'SORTIE_ANA':
@@ -406,21 +416,25 @@ class DialoguePeripherique(QDialog):
 
     # ---------------------------------------------------------------- entrée / sortie analogique
     def _entrees_ana(self, ai=None):
-        """Liste des AI selon le mode (AI1-AI4 en courant, AI3-AI4 en tension) ; garde `ai` si proposée."""
+        """Liste des AI (AI1-AI4 dans les deux modes) ; garde `ai` si proposée."""
         cb = self.champs['ai']
-        valeurs = MODES_ANA[self.champs['mode'].currentData()][1]
+        valeurs = [1, 2, 3, 4]
         cb.blockSignals(True)
         remplir_combo(cb, 'AI', valeurs, self.occ_ai)
         choisir(cb, ai if ai in valeurs else premier_libre(valeurs, self.occ_ai))
         cb.blockSignals(False)
 
     def _mode_ana_modifie(self):
-        self._entrees_ana(self.champs['ai'].currentData())
-        bas, haut = MODES_ANA[self.champs['mode'].currentData()][2]
-        self.form.labelForField(self.champs['mesure_bas']).setText(bas)
-        self.form.labelForField(self.champs['mesure_haut']).setText(haut)
         if not self.champs['etalonnage'].isChecked():
             self.champs['eng_haut'].setValue(ETALONNAGE_HAUT[self.champs['mode'].currentData()])
+        self._entree_ana_modifiee()
+
+    def _entree_ana_modifiee(self):
+        """Mode ou entrée changé : libellés de l'échelle (0-20 mA, 0-20 V ou 0-5 V), étalonnage, nom proposé."""
+        bas, haut = libelles_echelle_ana(self.champs['mode'].currentData(), self.champs['ai'].currentData())
+        self.form.labelForField(self.champs['mesure_bas']).setText(bas)
+        self.form.labelForField(self.champs['mesure_haut']).setText(haut)
+        self._etats_ana()
         self._proposer_nom()
 
     def _champs_echelle_ana(self, p):
@@ -430,7 +444,8 @@ class DialoguePeripherique(QDialog):
         self.form.addRow('Échelle', ck)
         self.champs['echelle'] = ck
         mode = self.champs['mode'].currentData() if 'mode' in self.champs else 'courant'
-        for cle, lib, defaut in zip(('mesure_bas', 'mesure_haut'), MODES_ANA[mode][2], (0.0, 100.0)):
+        ai = self.champs['ai'].currentData() if 'ai' in self.champs else None
+        for cle, lib, defaut in zip(('mesure_bas', 'mesure_haut'), libelles_echelle_ana(mode, ai), (0.0, 100.0)):
             self._spin(lib, cle, -99999.0, 99999.0, 1.0, float(p.get(cle, defaut)) if avec else defaut)
         ed = QLineEdit(p.get('unite', '') if avec else ''); ed.setMaxLength(8)
         self.form.addRow('Unité', ed)
@@ -442,6 +457,12 @@ class DialoguePeripherique(QDialog):
     def _etats_ana(self, *_):
         """Champs actifs : l'étalonnage remplace l'échelle (case grisée) mais garde l'unité."""
         c = self.champs
+        if 'etalonnage' in c:           # AI1/AI2 : Span toujours 2048, pas d'étalonnage (v2.4)
+            a12 = c['ai'].currentData() in (1, 2)
+            if a12:
+                c['etalonnage'].setChecked(False)
+            c['etalonnage'].setEnabled(not a12)
+            c['etalonnage'].setToolTip('AI1/AI2 : Span toujours 2048' if a12 else '')
         et = 'etalonnage' in c and c['etalonnage'].isChecked()
         if et:
             c['echelle'].setChecked(False)

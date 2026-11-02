@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 38 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé, étalonnage et alarme radio d'une entrée analogique.
+Résultat attendu : `Ran 41 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé, étalonnage et alarme radio d'une entrée analogique, entrées en tension AI1-AI4 et conversion des fichiers au format 1.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -73,7 +73,7 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 ## Entrée et sortie analogiques (moteur v2.0)
 
 - [ ] Remote : **Entrée analogique** AI2, courant, échelle 0–10 bar : page 2, registre 35301 « Mesure analogique » avec `16384 = 0 bar, 49152 = 10 bar` ; tableau de bord de la base (groupe Mesures) en bar.
-- [ ] Base : **Entrée analogique** AI4, **tension**, échelle 0–48 V : registre 3530x ; en mode Tension, seules AI3 et AI4 sont proposées.
+- [ ] Base : **Entrée analogique** AI4, **tension**, échelle 0–48 V : registre 3530x ; en mode Tension, AI1 à AI4 sont proposées (AI4 : « Valeur à 5 V »).
 - [ ] Une AI prise par un radar est grisée pour l'entrée analogique, et inversement.
 - [ ] Remote : **Sortie analogique** AO1 : registre 45001 « Consigne sortie analogique » ; câblage : ligne AO1 ; checklist : « écrire 16384 puis 49152 dans 45001 ».
 - [ ] Ajouter une entrée ou une sortie analogique à un projet existant : version **majeure** ; changer seulement l'échelle : **mineure**.
@@ -102,3 +102,11 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] Cocher Étalonnage grise l'Échelle ; rouvrir le périphérique : réglages relus et groupe déplié.
 - [ ] Changer seulement un seuil, Générer : version mineure.
 - [ ] Projets existants sans ces réglages : « aucune modification ».
+
+## Entrées en tension corrigées (moteur v2.4)
+
+- [ ] Entrée analogique, mode Tension : AI1 à AI4 proposées ; libellés 0 V / 20 V pour AI1-AI2, 0 V / 5 V pour AI3-AI4 ; Étalonnage grisé sur AI1/AI2.
+- [ ] `demo_site_A`, A-BASE : Tension AI2 `BATT_CAM` : registre 35301 « AI2 0-20 V : 8192 = 0 V, 49152 = 20 V » ; XML de A-BASE, ligne AIn `BATT_CAM | 8192 | 2048 | …`.
+- [ ] Toutes les radios, `.cdb` dans CConfig : E/S AI1 (0-20V) et AI2 (0-20V) Span 2048.
+- [ ] Ouvrir un fichier de la 1.6.0 avec une entrée « AI4 tension » : message de conversion ; l'entrée est en AI2, sans étalonnage ; Générer : version mineure ; registres identiques.
+- [ ] Projets existants sans entrée en tension : « aucune modification ».

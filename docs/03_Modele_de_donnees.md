@@ -5,12 +5,12 @@ La page 1 produit et relit **exactement** cette structure (`dict` Python, enregi
 ## Racine
 
 ```json
-{ "version": 1, "version_config": "2.1", "derniere_generation": { … }, "systeme": { … }, "radios": [ … ] }
+{ "version": 2, "version_config": "2.1", "derniere_generation": { … }, "systeme": { … }, "radios": [ … ] }
 ```
 
 | Clé | Type | Obligatoire | Défaut | Règle |
 |---|---|---|---|---|
-| `version` | entier | oui | `1` | Version du **format** de fichier. Ne pas confondre avec `version_config` |
+| `version` | entier | oui | `2` (`M.FORMAT_PROJET`) | Version du **format** de fichier. Ne pas confondre avec `version_config`. Un fichier au format 1 est converti à l'ouverture par `M.normaliser_projet` (voir « Entrées en tension ») |
 | `version_config` | texte `X.Y` | non | `"1.0"` | Version de la **configuration**. Calculée par le moteur, jamais saisie (voir ci-dessous) |
 | `derniere_generation` | objet | non | absent | Copie de `systeme` + `radios` au moment de la dernière génération. Écrite par `M.preparer_generation`, ne pas modifier |
 
@@ -89,7 +89,7 @@ Chaque élément a un `type`, un `nom` (1 à 15 caractères `A-Z a-z 0-9 _`, uni
 | `SPOT` | Spot | `do` | |
 | `CAMERA_SPOT` | Caméra + spot (1 commande) | `do_camera`, `do_spot` | `{"type":"CAMERA_SPOT","nom":"CAM","do_camera":1,"do_spot":2}` |
 | `SORTIE` | Sortie générique | `do` | |
-| `ENTREE_ANA` | Entrée analogique (mesure) | `ai` : 1 à 4 ; `mode` : `courant` (0-20 mA, AI1–AI4) ou `tension` (0-5 V, **AI3 ou AI4 seulement**) ; échelle facultative : `mesure_bas`, `mesure_haut` (valeur à 4 mA et à 20 mA en courant, à 0 V et à 5 V en tension), `unite` (1 à 8 caractères) ; réglages avancés facultatifs `etalonnage` et `alarme_radio` (voir plus bas) | `{"type":"ENTREE_ANA","nom":"BATT_CAM","ai":4,"mode":"tension","mesure_bas":0,"mesure_haut":48,"unite":"V"}` |
+| `ENTREE_ANA` | Entrée analogique (mesure) | `ai` : 1 à 4 ; `mode` : `courant` (0-20 mA) ou `tension` (**AI1/AI2 0-20 V, AI3/AI4 0-5 V**) ; échelle facultative, pour l'affichage seulement : `mesure_bas`, `mesure_haut` (valeur à 4 mA et à 20 mA en courant ; à 0 V et à 20 V sur AI1/AI2, à 0 V et à 5 V sur AI3/AI4 en tension), `unite` (1 à 8 caractères) ; réglages avancés facultatifs `etalonnage` et `alarme_radio` (voir plus bas) | `{"type":"ENTREE_ANA","nom":"BATT_CAM","ai":2,"mode":"tension","mesure_bas":0,"mesure_haut":20,"unite":"V"}` |
 | `SORTIE_ANA` | Sortie analogique 4-20 mA | `ao` : 1 ou 2 ; échelle facultative `mesure_bas`, `mesure_haut` (valeur à 4 et à 20 mA), `unite` | `{"type":"SORTIE_ANA","nom":"VANNE","ao":1}` |
 
 **Ancien format du feu** (`do_orange`, avant la v1.5 du moteur) : `M.normaliser_projet(projet)` le convertit en `do_orange_cli` (l'ancien orange était un orange clignotant) et ajoute `do_orange_fixe: null`. `M.valider`, `M.calculer_plan` et `M.preparer_generation` appliquent cette conversion d'eux-mêmes ; l'interface l'appelle à l'ouverture pour que le fichier enregistré soit au nouveau format.
@@ -102,16 +102,27 @@ Chaque élément a un `type`, un `nom` (1 à 15 caractères `A-Z a-z 0-9 _`, uni
 
 **Tableau de bord de la base** (50 éléments au maximum, limite ELPRO) : toutes les alarmes (détections) et tous les radars ; **une seule commande de chaque genre** (feu rouge, orange clignotant, orange fixe, vert, sirène, flash, caméra…, la première du site) ; tous les BATTV, MAINV, RSSI et comflags. S'il y a plus de 50 éléments, les RSSI sont retirés et `plan['avertissements']` contient un message.
 
-**Entrées et sorties analogiques génériques (moteur v2.0)** : mesure seule, **sans alarme** (les alarmes éventuelles sont faites par le datalogger). Registres de la base : mesures **35301–35350** (valeur brute : 16384 = 4 mA, 49152 = 20 mA en courant ; 8192 = 0 V, 49152 = 5 V en tension), consignes **45001–45020** (écrites par la supervision, recopiées vers l'AO de la radio : 16384 = 4 mA, 49152 = 20 mA), échec de lecture **158xx** (non listé, comme les autres registres d'échec). Numérotation dans l'ordre des radios puis des AI/AO. Au plus 50 entrées et 20 sorties analogiques sur le site. Une AI sert soit à un radar, soit à une entrée analogique.
+**Entrées et sorties analogiques génériques (moteur v2.0)** : mesure seule, **sans alarme** (les alarmes éventuelles sont faites par le datalogger). Registres de la base : mesures **35301–35350** (valeur brute : 16384 = 4 mA, 49152 = 20 mA en courant ; en tension 8192 = 0 V, 49152 = 20 V sur AI1/AI2, 49152 = 5 V sur AI3/AI4), consignes **45001–45020** (écrites par la supervision, recopiées vers l'AO de la radio : 16384 = 4 mA, 49152 = 20 mA), échec de lecture **158xx** (non listé, comme les autres registres d'échec). Numérotation dans l'ordre des radios puis des AI/AO. Au plus 50 entrées et 20 sorties analogiques sur le site. Une AI sert soit à un radar, soit à une entrée analogique.
 
-**Réglages avancés d'une entrée analogique (moteur v2.3)** : deux clés facultatives, les mêmes réglages que dans CConfig. Clé absente = réglage standard (fichiers identiques à la v2.2).
+**Entrées en tension (moteur v2.4, d'après le manuel 415U-2)** : AI1 et AI2 mesurent 0-20 mA ou 0-20 V (détection automatique), AI3 et AI4 0-20 mA ou 0-5 V (interrupteurs DIP).
+
+| | Courant | Tension |
+|---|---|---|
+| AI1 / AI2 | 30001 / 30002 (Ain1/Ain2), Span 2048 | **30009 / 30010 (Ain5/Ain6), 0-20 V, Span 2048 toujours** |
+| AI3 / AI4 | 30003 / 30004 (Ain3/Ain4), Span 2048 | **30011 / 30012 (Ain7/Ain8), 0-5 V, Span 8192** |
+
+Sur toutes les radios, les E/S en tension sont écrites avec des réglages fixes (`.cdb` et XML) : Ain5 « AI1 (0-20V) » et Ain6 « AI2 (0-20V) » Zero 8192 / Span 2048 ; Ain7 « AI3 (0-5V) » et Ain8 « AI4 (0-5V) » Zero 8192 / Span 8192. AI1 et AI2 ont toujours Span 2048, en courant comme en tension, pour que la campbell lise toutes les mesures de la même façon.
+
+**Conversion des fichiers au format 1** : la 1.6.0 plaçait « AI3/AI4 en tension » sur 30009/30010, c'est-à-dire en réalité AI1/AI2. À l'ouverture, `M.normaliser_projet` convertit une entrée en tension AI3 → AI1, AI4 → AI2 (le registre qu'elle utilisait réellement), retire son étalonnage et passe `version` à 2. L'interface affiche un message pour chaque entrée convertie. Le plan de registres ne change pas ; la génération suivante est une version **mineure** (les fichiers des radios changent : Span 2048).
+
+**Réglages avancés d'une entrée analogique (moteur v2.3)** : deux clés facultatives, les mêmes réglages que dans CConfig. **`etalonnage` seulement sur AI3/AI4** (AI1/AI2 : Span toujours 2048, message de `M.valider()`) ; `alarme_radio` sur toutes les entrées. Clé absente = réglage standard (fichiers identiques à la v2.2).
 
 | Clé | Contenu | Effet |
 |---|---|---|
 | `etalonnage` | `{"reg_bas": 8192, "reg_haut": 30720, "eng_bas": 0, "eng_haut": 25}` : registres entiers 0–65535, `reg_bas < reg_haut`, `eng_bas ≠ eng_haut` | Écrit Zero, Span, RegLow, RegHigh, EngLow, EngHigh de l'E/S de la radio (`Span = (reg_haut − reg_bas) / (eng_haut − eng_bas)`, calculé par `M.reglages_ai`). Donne aussi l'échelle du registre 353nn (tableau de bord, description) : **ne se cumule pas** avec `mesure_bas` / `mesure_haut`. `unite` par défaut `V` |
 | `alarme_radio` | `{"bas": 11.4, "haut": 14.6, "fenetre": 0}` : `bas ≤ haut`, `fenetre` 0 ou 1 | Écrit SPLow, SPHigh, SPWindow de l'E/S ; repris comme alarmes basse / haute du tag du tableau de bord |
 
-Le nom de l'entrée dans la radio (IO et nom des registres 30009/30010 en tension) est celui du périphérique. Modifier ces réglages est une modification **mineure** (aucun registre ne bouge). Exemple : batterie d'une caméra sur l'AI4 de la base, 0–25 V sur 8192–30720, alarmes 11,4 / 14,6 V.
+Le nom de l'entrée dans la radio (IO et nom des registres 30009–30012 en tension) est celui du périphérique. Modifier ces réglages est une modification **mineure** (aucun registre ne bouge). Exemple : batterie d'une caméra sur l'AI4 de la base, 0–25 V sur 8192–30720, alarmes 11,4 / 14,6 V.
 
 **Noms** : les noms de registres et de tags du tableau de bord sont limités à 15 caractères (`M.NOM_MAX`) et uniques, construits par `M.nom_court(station, libellé)`. Au-delà, la radio affiche un nom d'E/S par défaut à la place (constaté sur radio : un tag de 16 caractères est remplacé par DIn1, DOut5…).
 

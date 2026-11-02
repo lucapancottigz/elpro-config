@@ -2,6 +2,12 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.6.1] — 2026-11-02
+
+### Corrigé
+- Entrées analogiques en tension, d'après le manuel 415U-2 : **AI1/AI2 0-20 V** sur les registres 30009/30010 (Ain5/Ain6), toujours Zero 8192 / **Span 2048** ; **AI3/AI4 0-5 V** sur 30011/30012 (Ain7/Ain8), Span 8192. La 1.6.0 plaçait « AI3/AI4 en tension » sur 30009/30010, c'est-à-dire en réalité AI1/AI2. Les E/S en tension sont écrites avec ces réglages fixes sur toutes les radios (`.cdb` et XML). Le mode Tension propose AI1 à AI4 ; l'étalonnage n'est possible que sur AI3/AI4.
+- Conversion automatique des anciens fichiers (format 1 → 2) : une entrée en tension AI3/AI4 devient AI1/AI2 (le registre qu'elle utilisait), sans étalonnage, avec un message à l'ouverture. Les registres ne changent pas ; la génération suivante est une version mineure.
+
 ## [1.6.0] — 2026-10-27
 
 ### Ajouté

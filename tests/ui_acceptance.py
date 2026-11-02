@@ -696,10 +696,10 @@ def main():
         d.champs['echelle'].setChecked(True)
         d.champs['mesure_bas'].setValue(0); d.champs['mesure_haut'].setValue(48); d.champs['unite'].setText('V')
     d, ana_b = ajouter_periph(0, ana_tension)
-    verifier([d.champs['ai'].itemData(i) for i in range(d.champs['ai'].count())] == [3, 4]
+    verifier([d.champs['ai'].itemData(i) for i in range(d.champs['ai'].count())] == [1, 2, 3, 4]
              and d.form.labelForField(d.champs['mesure_haut']).text() == 'Valeur à 5 V'
              and ana_b['mode'] == 'tension' and ana_b['ai'] == 4,
-             'base : entrée analogique en tension, seules AI3 et AI4 proposées, « Valeur à 5 V »')
+             'base : entrée analogique en tension, AI1 à AI4 proposées, AI4 « Valeur à 5 V »')
     verifier(p1.lb_version.text() == 'Modification majeure — prochaine génération : V2.0',
              'entrée/sortie analogique ajoutée : libellé majeure V2.0')
     MESSAGES.clear()
@@ -880,6 +880,76 @@ def main():
     verifier(etats['relu'], 'rouvrir le périphérique : réglages relus, groupe déplié, Échelle grisée')
     verifier(p1.radio_courante()['peripheriques'][k]['alarme_radio']['haut'] == 15
              and p1.lb_version.text().startswith('Modification mineure'), 'seuil haut seul changé : modification mineure')
+    REPONSES['question'] = QMessageBox.Discard
+
+    print('Entrées en tension corrigées (moteur v2.4)')
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_A.json'))
+    p1.tab_radios.selectRow(0)
+    d = dialogs.DialoguePeripherique(p1, p1.projet, p1.radio_courante())
+    dialogs.choisir(d.cb_type, 'ENTREE_ANA'); dialogs.choisir(d.champs['mode'], 'tension')
+    libelles = {}
+    for a in (1, 2, 3, 4):
+        dialogs.choisir(d.champs['ai'], a)
+        libelles[a] = (d.form.labelForField(d.champs['mesure_bas']).text(), d.form.labelForField(d.champs['mesure_haut']).text(),
+                       d.champs['etalonnage'].isEnabled())
+    verifier(actives(d.champs['ai']) == [1, 2, 3, 4] and d.champs['mode'].currentText() == 'Tension (AI1/AI2 0-20 V, AI3/AI4 0-5 V)',
+             'mode Tension : AI1 à AI4 proposées')
+    verifier(libelles == {1: ('Valeur à 0 V', 'Valeur à 20 V', False), 2: ('Valeur à 0 V', 'Valeur à 20 V', False),
+                          3: ('Valeur à 0 V', 'Valeur à 5 V', True), 4: ('Valeur à 0 V', 'Valeur à 5 V', True)},
+             'libellés 0 V / 20 V sur AI1-AI2, 0 V / 5 V sur AI3-AI4 ; Étalonnage grisé sur AI1/AI2')
+    dialogs.choisir(d.champs['ai'], 4); d.champs['etalonnage'].setChecked(True)
+    dialogs.choisir(d.champs['ai'], 2)
+    verifier(not d.champs['etalonnage'].isChecked() and d.champs['etalonnage'].toolTip() == 'AI1/AI2 : Span toujours 2048'
+             and d.champs['alarme_radio'].isEnabled(),
+             'passer sur AI2 décoche l\'étalonnage (bulle « Span toujours 2048 ») ; Alarme de la radio disponible')
+
+    def batt_ai2(d):
+        dialogs.choisir(d.cb_type, 'ENTREE_ANA'); dialogs.choisir(d.champs['mode'], 'tension')
+        dialogs.choisir(d.champs['ai'], 2); d.ed_nom.setText('BATT_CAM')
+    _d, cam = ajouter_periph(0, batt_ai2)
+    verifier(p1.tab_periph.item(len(p1.radio_courante()['peripheriques']) - 1, 2).text() == 'AI2 — 0-20 V',
+             'câblage « AI2 — 0-20 V »')
+    MESSAGES.clear()
+    F.generer()
+    reg = next((r for r in p2.plan['registres'] if r['adresse'] == 35301), {})
+    verifier(not dernier('warning') and 'AI2 0-20 V : 8192 = 0 V, 49152 = 20 V' in reg.get('description', ''),
+             'A-BASE, tension AI2 : registre 35301 « AI2 0-20 V : 8192 = 0 V, 49152 = 20 V »')
+    d_xml, xmls = exporter('xml_ai2', p2._export_xml)
+    base_a = ET.parse(os.path.join(d_xml, next(f for f in xmls if f.endswith('_A-BASE.xml')))).getroot()
+    lignes = [[c.text for c in tr] for tr in base_a.iter('tr')]
+    verifier(any(l[:3] == ['BATT_CAM', '8192', '2048'] for l in lignes), 'XML de A-BASE : ligne AIn BATT_CAM | 8192 | 2048 | …')
+    REPONSES['question'] = QMessageBox.Discard
+
+    # fichier de la 1.6.0 (format 1) avec une entrée « AI4 tension » étalonnée
+    with open(os.path.join(ex, 'demo_site_A.json'), encoding='utf-8') as f:
+        ancien = json.load(f)
+    ancien['version'] = 1
+    ancien['radios'][0]['peripheriques'].append(
+        {'type': 'ENTREE_ANA', 'nom': 'BATT_CAM', 'ai': 4, 'mode': 'tension', 'unite': 'V',
+         'etalonnage': {'reg_bas': 8192, 'reg_haut': 30720, 'eng_bas': 0, 'eng_haut': 25}})
+    ancien['version_config'] = '1.0'          # déjà généré en 1.6.0 : historique sans clé « version »
+    ancien['derniere_generation'] = json.loads(json.dumps({'systeme': ancien['systeme'], 'radios': ancien['radios']}))
+    chemin_ancien = os.path.join(tmp, 'ancien_1.6.0.elpro.json')
+    with open(chemin_ancien, 'w', encoding='utf-8') as f:
+        json.dump(ancien, f, ensure_ascii=False)
+    MESSAGES.clear()
+    F.ouvrir_fichier(chemin_ancien)
+    m = dernier('information')
+    entree = p1.projet['radios'][0]['peripheriques'][-1]
+    verifier(m and 'entrée en tension AI4 convertie en AI2 (registre 30010, Span 2048) ; étalonnage retiré.' in m[2]
+             and 'Générez une nouvelle version.' in m[2], 'ancien fichier : message de conversion AI4 → AI2')
+    verifier(entree['ai'] == 2 and 'etalonnage' not in entree and p1.projet['version'] == M.FORMAT_PROJET,
+             'ancien fichier : entrée en AI2, sans étalonnage, format 2')
+    registres_avant = [r['adresse'] for r in M.calculer_plan(json.loads(json.dumps(ancien)))['registres']]
+    F.generer()
+    verifier(F.statusBar().currentMessage().startswith('Configuration générée — version V1.1') and 'mineure' in F.statusBar().currentMessage()
+             and [r['adresse'] for r in p2.plan['registres']] == registres_avant,
+             'ancien fichier, Générer : version mineure, registres identiques')
+    MESSAGES.clear()
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
+    verifier(not dernier('information'), 'fichier au format 2 : pas de message de conversion')
+    F.nouveau()
+    verifier(p1.projet['version'] == M.FORMAT_PROJET == 2, 'nouveau projet : version = M.FORMAT_PROJET (2)')
     REPONSES['question'] = QMessageBox.Discard
 
     print()
