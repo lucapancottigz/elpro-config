@@ -158,7 +158,8 @@ def _cablage(S, plan):
     for R in S['radars']:
         ai[R['ai']] = (R['label'], 'RADAR', R['adresse'])
     for A in S.get('ana', []):
-        ai[A['ai']] = (A['label'], 'Mesure ' + ('0-20 mA' if A['mode'] == 'courant' else '0-5 V'), A['adresse'])
+        gamme = '0-20 mA' if A['mode'] == 'courant' else ('0-20 V' if A['ai'] in (1, 2) else '0-5 V')
+        ai[A['ai']] = (A['label'], 'Mesure ' + gamme, A['adresse'])
     L = []
     for i in range(1, 9):
         p = di.get(i); L.append([S['nom'], f'DI{i}', *(p if p else ('libre', '', '')), 'Oui' if p and S['inv_entrees'] and p[1] != 'Secteur' else ''])

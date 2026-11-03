@@ -163,7 +163,24 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, 'Ouvrir un projet', f'Impossible d\'ouvrir {os.path.basename(chemin)} :\n{e}')
             return
         QSettings().setValue('dossier_projet', os.path.dirname(chemin))
+        avant = json.loads(json.dumps(projet))
         self._charger(projet, chemin, modifie=self._normaliser(projet))
+        conversions = self._entrees_converties(avant, projet)
+        if conversions:
+            QMessageBox.information(self, 'Ancien fichier converti',
+                                    '\n'.join(conversions) + '\n\nGénérez une nouvelle version.')
+
+    @staticmethod
+    def _entrees_converties(avant, apres):
+        """Entrées en tension déplacées par M.normaliser_projet (format 1 -> 2) : une ligne par entrée."""
+        lignes = []
+        for ra, r in zip(avant.get('radios', []), apres.get('radios', [])):
+            for a, p in zip(ra.get('peripheriques', []), r.get('peripheriques', [])):
+                if p.get('type') == 'ENTREE_ANA' and a.get('ai') != p.get('ai'):
+                    lignes.append(f"{r.get('nom')} / {p.get('nom')} : entrée en tension AI{a.get('ai')} convertie en "
+                                  f"AI{p.get('ai')} (registre {M.registre_ai(p)}, Span 2048)"
+                                  + (' ; étalonnage retiré.' if 'etalonnage' in a else '.'))
+        return lignes
 
     @staticmethod
     def _normaliser(projet):

@@ -419,7 +419,7 @@ class TestAnalogique(unittest.TestCase):
         p = M.normaliser_projet(charger('demo_site_A'))
         R = {r['nom']: r for r in p['radios']}
         R['A-BASE']['peripheriques'] += [
-            {'type': 'ENTREE_ANA', 'nom': 'BATT_CAM', 'ai': 4, 'mode': 'tension', 'mesure_bas': 0, 'mesure_haut': 48, 'unite': 'V'},
+            {'type': 'ENTREE_ANA', 'nom': 'BATT_CAM', 'ai': 2, 'mode': 'tension', 'mesure_bas': 0, 'mesure_haut': 20, 'unite': 'V'},
             {'type': 'SORTIE_ANA', 'nom': 'CONS_B', 'ao': 2}]
         R['A-SM1']['peripheriques'] += [
             {'type': 'ENTREE_ANA', 'nom': 'NIVEAU', 'ai': 1, 'mesure_bas': 0, 'mesure_haut': 300, 'unite': 'cm'},
@@ -437,13 +437,13 @@ class TestAnalogique(unittest.TestCase):
         B, SM1, F1 = S['A-BASE'], S['A-SM1'], S['A-F1']
         reg = {r['adresse']: r for r in pl['registres']}
         self.assertEqual([A['adresse'] for A in B['ana'] + SM1['ana']], [35301, 35302, 35303, 35304])
-        self.assertEqual([A['distant'] for A in SM1['ana']], [30001, 30002, 30010])
+        self.assertEqual([A['distant'] for A in SM1['ana']], [30001, 30002, 30012])     # AI4 0-5 V = 30012 (v2.4)
         self.assertEqual(reg[35302]['type'], 'Mesure analogique')
         self.assertEqual([c['adresse'] for c in B['consignes'] + F1['consignes']], [45001, 45002])
         # lectures : AI1+AI2 en une lecture, AI4 tension en une autre ; échec 158xx
         lus = [m for m in B['reads'] if m['nom'].startswith('A-SM1_ReadANA')]
         self.assertEqual([(m['distant'], m['nb'], m['local'], m['fail']) for m in lus],
-                         [(30001, 2, 35302, 15802), (30010, 1, 35304, 15802)])
+                         [(30001, 2, 35302, 15802), (30012, 1, 35304, 15802)])
         self.assertIn((15801, M.FAILSAFE_COUNT), B['failsafe'])
         # IO Plus : comflag = toutes les lectures en échec, y compris les deux lectures ANA (même registre 158xx)
         bl, cur = [], []
@@ -463,7 +463,8 @@ class TestAnalogique(unittest.TestCase):
         self.assertIn('Mesures', dict(B['groupes'])); self.assertIn('Consignes AO', dict(B['groupes']))
         t = next(t for t in B['tags'] if t['registre'] == 35302)
         self.assertEqual((t['unites'], t['rp1'], t['rp2'], t['dp1'], t['dp2']), ('cm', 16384, 49152, '0', '300'))
-        self.assertEqual(SM1['noms_io']['Ain6'], 'PLUIE')        # AI4 en tension = Ain6 dans CConfig
+        self.assertEqual(SM1['noms_io']['Ain8'], 'PLUIE')        # AI4 en tension = Ain8 dans CConfig (v2.4)
+        self.assertEqual(B['noms_io']['Ain6'], 'BATT_CAM')       # AI2 en tension = Ain6
         self.assertEqual(F1['noms_io']['Aot1'], 'VANNE')
         self.assertIn('Mesures', dict(SM1['groupes'])); self.assertIn('Consignes AO', dict(F1['groupes']))
 
@@ -485,7 +486,8 @@ class TestAnalogique(unittest.TestCase):
             p = M.normaliser_projet(charger('demo_site_A'))
             next(r for r in p['radios'] if r['nom'] == radio)['peripheriques'].append(per)
             return ' '.join(M.valider(p))
-        self.assertIn('AI3 ou AI4 en tension', err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 1, 'mode': 'tension'}))
+        self.assertEqual(err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 1, 'mode': 'tension'}), '')   # v2.4 : AI1/AI2 0-20 V
+        self.assertIn('entrée AI1 à AI4', err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 5, 'mode': 'tension'}))
         self.assertIn('AO1 ou AO2', err({'type': 'SORTIE_ANA', 'nom': 'X', 'ao': 3}))
         self.assertIn('échelle incomplète', err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 1, 'mesure_bas': 0}))
         self.assertIn('unité', err({'type': 'ENTREE_ANA', 'nom': 'X', 'ai': 1, 'mesure_bas': 0, 'mesure_haut': 5, 'unite': ''}))
@@ -625,9 +627,8 @@ class TestReglagesAI(unittest.TestCase):
     def test_plan_cdb_xml(self):
         p = self.projet(); self.assertEqual(M.valider(p), [])
         plan = M.calculer_plan(p); B = plan['stations'][0]; A = B['ana'][0]
-        self.assertEqual((A['adresse'], A['distant'], A['io']), (35301, 30010, 'Ain6'))
-        self.assertIn((30010, 'BATT_CAM'), B['noms_registres'])
-        self.assertNotIn((30010, 'AI4 (0-5V)'), B['noms_registres'])
+        self.assertEqual((A['adresse'], A['distant'], A['io']), (35301, 30012, 'Ain8'))   # AI4 0-5 V (v2.4)
+        self.assertIn((30012, 'BATT_CAM'), B['noms_registres'])
         self.assertEqual(A['reglages'], {'Zero': '8192', 'Span': '901.12', 'RegLow': 8192, 'RegHigh': 30720, 'EngLow': '0',
                                          'EngHigh': '25', 'SPLow': '11.4', 'SPHigh': '14.6', 'SPWindow': 0})
         reg = next(r for r in plan['registres'] if r['adresse'] == 35301)
@@ -637,12 +638,12 @@ class TestReglagesAI(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             c = M.ecrire_cdb(plan, os.path.join(d, 'x.cdb'))
             txt = Path(c).read_text(encoding='utf-16')
-        u = txt[txt.find('name="A-BASE"'):]; io = u[u.find('<IO ID="Ain6">'):]; io = io[:io.find('</IO>')]
+        u = txt[txt.find('name="A-BASE"'):]; io = u[u.find('<IO ID="Ain8">'):]; io = io[:io.find('</IO>')]
         for champ, val in (('Name', 'BATT_CAM'), ('Zero', '8192'), ('Span', '901.12'), ('RegHigh', '30720'),
                            ('EngHigh', '25'), ('SPLow', '11.4'), ('SPHigh', '14.6'), ('SPWindow', '0')):
             self.assertRegex(io, rf'<{champ}(?: d="C")?>{re.escape(val)}</{champ}>', champ)
         I, Tb = TestXmlRadio.plat(M.xml_radio(plan, B))
-        self.assertEqual(Tb['/IO/AIn'][9], ['BATT_CAM', '8192', '901.12', '5', '11.4', '14.6', '0', '0'])
+        self.assertEqual(Tb['/IO/AIn'][11], ['BATT_CAM', '8192', '901.12', '5', '11.4', '14.6', '0', '0'])
 
     def test_sans_reglages_inchange(self):
         p = self.projet(); b = p['radios'][0]['peripheriques'][-1]
@@ -650,7 +651,7 @@ class TestReglagesAI(unittest.TestCase):
         plan = M.calculer_plan(p)
         self.assertEqual(plan['stations'][0]['ana'][0]['reglages'], {})
         I, Tb = TestXmlRadio.plat(M.xml_radio(plan, plan['stations'][0]))
-        self.assertEqual(Tb['/IO/AIn'][9], ['BATT_CAM', '8192', '8192', '5', '0', '0', '0', '0'])
+        self.assertEqual(Tb['/IO/AIn'][11], ['BATT_CAM', '8192', '8192', '5', '0', '0', '0', '0'])
 
     def test_validation(self):
         mauvais = [{'etalonnage': {'reg_bas': 30720, 'reg_haut': 8192, 'eng_bas': 0, 'eng_haut': 25}},
@@ -666,6 +667,62 @@ class TestReglagesAI(unittest.TestCase):
         self.assertEqual(M.classer_modification(a, q), 'majeure')
         r = json.loads(json.dumps(q)); r['radios'][0]['peripheriques'][-1]['alarme_radio']['haut'] = 15
         self.assertEqual(M.classer_modification(q, r), 'mineure')
+
+
+class TestTensionV24(unittest.TestCase):
+    """v2.4 : AI1/AI2 en tension 0-20 V (30009/30010, Ain5/Ain6) avec Span 2048 TOUJOURS ; AI3/AI4 0-5 V (30011/30012)."""
+
+    def test_span_2048_partout(self):
+        p = charger('demo_site_A'); plan = M.calculer_plan(p)
+        with tempfile.TemporaryDirectory() as d:
+            txt = Path(M.ecrire_cdb(plan, os.path.join(d, 'x.cdb'))).read_text(encoding='utf-16')
+        for S in plan['stations']:
+            u = txt[txt.find(f'name="{S["nom"]}"'):]
+            for io, (nom, zero, span) in (('Ain5', ('AI1 (0-20V)', '8192', '2048')), ('Ain6', ('AI2 (0-20V)', '8192', '2048')),
+                                          ('Ain7', ('AI3 (0-5V)', '8192', '8192')), ('Ain8', ('AI4 (0-5V)', '8192', '8192'))):
+                b = u[u.find(f'<IO ID="{io}">'):]; b = b[:b.find('</IO>')]
+                for champ, val in (('Name', nom), ('Zero', zero), ('Span', span)):
+                    self.assertRegex(b, rf'<{champ}(?: d="C")?>{re.escape(val)}</{champ}>', (S['nom'], io, champ))
+            I, Tb = TestXmlRadio.plat(M.xml_radio(plan, S))
+            self.assertEqual([l[:3] for l in Tb['/IO/AIn'][8:12]],
+                             [['AI1 (0-20V)', '8192', '2048'], ['AI2 (0-20V)', '8192', '2048'],
+                              ['AI3 (0-5V)', '8192', '8192'], ['AI4 (0-5V)', '8192', '8192']])
+
+    def test_entree_tension_ai2(self):
+        p = charger('demo_site_A')
+        p['radios'][0]['peripheriques'].append({'type': 'ENTREE_ANA', 'nom': 'BATT_CAM', 'ai': 2, 'mode': 'tension',
+                                                'alarme_radio': {'bas': 11.4, 'haut': 14.6, 'fenetre': 0}})
+        self.assertEqual(M.valider(p), [])
+        plan = M.calculer_plan(p); B = plan['stations'][0]; A = B['ana'][0]
+        self.assertEqual((A['distant'], A['io'], A['rp1'], A['rp2'], A['dp1'], A['dp2'], A['unite']),
+                         (30010, 'Ain6', 8192, 49152, 0, 20, 'V'))
+        reg = next(r for r in plan['registres'] if r['adresse'] == 35301)
+        self.assertEqual(reg['description'], 'AI2 0-20 V : 8192 = 0 V, 49152 = 20 V')
+        I, Tb = TestXmlRadio.plat(M.xml_radio(plan, B))
+        self.assertEqual(Tb['/IO/AIn'][9], ['BATT_CAM', '8192', '2048', '5', '11.4', '14.6', '0', '0'])
+        self.assertIn((30010, 'BATT_CAM'), B['noms_registres'])
+        self.assertNotIn((30010, 'AI2 (0-20V)'), B['noms_registres'])
+        # pas d'étalonnage sur AI1/AI2 (Span fixe 2048)
+        p['radios'][0]['peripheriques'][-1]['etalonnage'] = {'reg_bas': 8192, 'reg_haut': 30720, 'eng_bas': 0, 'eng_haut': 25}
+        self.assertTrue(any('Span toujours 2048' in e for e in M.valider(p)))
+
+    def test_migration_format_1(self):
+        """Un .elpro.json écrit avant la v2.4 : « AI4 tension » utilisait le registre 30010 = AI2 en tension."""
+        ancien = charger('demo_site_A'); ancien['version'] = 1
+        ancien['radios'][0]['peripheriques'].append({
+            'type': 'ENTREE_ANA', 'nom': 'BATT_CAM', 'ai': 4, 'mode': 'tension', 'unite': 'V',
+            'etalonnage': {'reg_bas': 8192, 'reg_haut': 30720, 'eng_bas': 0, 'eng_haut': 25},
+            'alarme_radio': {'bas': 11.4, 'haut': 14.6, 'fenetre': 0}})
+        ancien['derniere_generation'] = {'systeme': ancien['systeme'], 'radios': json.loads(json.dumps(ancien['radios']))}
+        n = M.normaliser_projet(json.loads(json.dumps(ancien)))
+        per = n['radios'][0]['peripheriques'][-1]
+        self.assertEqual((n['version'], per['ai'], 'etalonnage' in per, per['alarme_radio']['haut']), (2, 2, False, 14.6))
+        self.assertEqual(M.calculer_plan(ancien)['stations'][0]['ana'][0]['distant'], 30010)     # même registre qu'avant
+        p2, niveau = M.preparer_generation(ancien)
+        self.assertEqual(niveau, 'mineure')                     # fichiers de la radio changés (Span 2048)
+        p3, niveau = M.preparer_generation(p2)
+        self.assertIsNone(niveau)                               # ensuite : plus aucune différence
+        self.assertEqual(M.normaliser_projet(json.loads(json.dumps(p2)))['radios'][0]['peripheriques'][-1]['ai'], 2)
 
 
 if __name__ == '__main__':

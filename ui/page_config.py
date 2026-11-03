@@ -28,7 +28,7 @@ def nouvelle_radio(nom, role, ip_octet, amont=None):
 
 
 def projet_vide():
-    return {'version': 1,
+    return {'version': M.FORMAT_PROJET,
             'systeme': {'nom_projet': '', 'system_name': '', 'cle_chiffrement': M.generer_cle(), 'puissance_dbm': 34,
                         'proprietaire': '', 'contact': '', 'description': '', 'localisation': ''},
             'radios': [nouvelle_radio('CA', 'base', 100)]}
