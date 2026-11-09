@@ -30,8 +30,10 @@ elpro_config/
 │  ├─ main_window.py      ← QMainWindow + QTabWidget (Page 1 / Page 2)
 │  ├─ page_config.py
 │  ├─ page_result.py
-│  └─ dialogs.py          ← fenêtres d'édition des radios et périphériques
+│  ├─ dialogs.py          ← fenêtres d'édition des radios et périphériques, À propos
+│  └─ mise_a_jour.py      ← mise à jour automatique : RechercheMaj, TelechargementMaj (threads), FenetreMaj
 ├─ engine/                 ← fourni, NE PAS MODIFIER (sauf mise en forme export_*.py)
+│  └─ updater.py          ← mise à jour depuis les releases GitHub (identique dans ELPRO Logs)
 ├─ resources/              ← fourni
 ├─ examples/               ← fourni
 └─ tests/                  ← fourni
@@ -54,6 +56,8 @@ PDF.ecrire_pdf(V.donnees_pdf(plan), chemin, plan['systeme']['nom_projet'])
 cle     = M.generer_cle()                   # clé de chiffrement 24 caractères
 projet, avertissements = M.importer_cdb(chemin)      # lève M.ProjetProtege si fichier protégé
 ```
+
+Mise à jour automatique (`import updater as U`, appelé seulement par `ui/mise_a_jour.py` et `ui/main_window.py`) : `U.chercher` et `U.telecharger` (réseau, dans un `QThread`), `U.a_proposer`, `U.verification_due`, `U.maintenant_iso`, `U.lancer_installation`, `U.nettoyer`, `U.ErreurMiseAJour`. La vérification automatique est lancée par `app.py` 3 s après l'ouverture (`MainWindow.verifier_maj_auto`), au plus une fois par 24 h (`QSettings` `maj/derniere_verification`, `maj/version_ignoree`). L'installateur est lancé dans `MainWindow.closeEvent`, une fois la fermeture acceptée.
 
 `projet` est un `dict` au format de `03_Modele_de_donnees.md`. `plan` est produit par le moteur ; l'interface ne le modifie jamais.
 

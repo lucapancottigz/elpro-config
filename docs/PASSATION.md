@@ -11,7 +11,7 @@ Document de reprise pour le nouveau programmeur. À lire en entier avant toute m
 | Élément | Valeur |
 |---|---|
 | Dépôt | `lucapancottigz/elpro-config` (**public**) |
-| Dernière version publiée | **1.6.1** (moteur de règles v2.4) |
+| Dernière version publiée | **1.7.0** (moteur de règles v2.4) |
 | Langage / interface | Python 3.11+ / PySide6 |
 | Distribution | Installateur Inno Setup publié dans les Releases GitHub |
 | Licence | Propriétaire : « © 2026 Geoazimut SàRL. Tous droits réservés. », geoazimut.com (fichier `LICENSE`) |
@@ -33,12 +33,12 @@ Circuit d'une version : besoin du propriétaire → complément de l'ingénieur 
 
 ## 3. Règles de travail (non négociables)
 
-1. **Ne modifie pas `engine/elpro_engine.py`, `engine/views.py`, `resources/`, `examples/` ni `tests/`.** Leurs règles ont été validées sur de vraies radios. Si quelque chose y semble faux, **arrête-toi et signale-le** : la correction passe par l'ingénieur. Dans `export_excel.py` et `export_pdf.py`, seule la mise en forme peut changer.
+1. **Ne modifie pas `engine/elpro_engine.py`, `engine/views.py`, `resources/`, `examples/` ni `tests/`.** Leurs règles ont été validées sur de vraies radios. Si quelque chose y semble faux, **arrête-toi et signale-le** : la correction passe par l'ingénieur. `engine/updater.py` et `tests/test_updater.py` (mise à jour automatique, 1.7.0) sont aussi **des fichiers de l'ingénieur, identiques dans elpro-config et elpro-logs** : ne pas les modifier, une correction est livrée aux deux dépôts. Dans `export_excel.py` et `export_pdf.py`, seule la mise en forme peut changer.
 2. **Aucune règle métier dans l'interface.** Elle saisit, appelle le moteur, affiche. Les messages d'erreur viennent de `elpro_engine.valider()`.
 3. **Aucune donnée réelle dans le dépôt**, qui est public : ni nom de client ou de site, ni clé de chiffrement, ni plan IP réel, ni `.elpro.json` ou `.cdb` de site. Seuls les exemples fictifs (`demo_site_A`, `demo_site_B`) y figurent.
 4. **Noms de fichiers et dossiers de code en anglais** ; **commentaires, docstrings, documentation et interface en français**.
 5. **Les fichiers produits pour l'utilisateur gardent des noms français** : `_Compte_rendu.pdf`, `_Adresses.xlsx`, `IOPlus_<radio>_V<x.y>_DESACTIVE.sconf` (ou `_ACTIVE`), `<projet>_V<x.y>_<radio>.xml`, `.elpro.json`. Les accents sont retirés des noms de fichiers.
-6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 41 tests … OK`**. `build.bat` le vérifie aussi.
+6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 62 tests … OK`** (moteur v2.4 et mise à jour automatique). `build.bat` le vérifie aussi.
 7. Installateur : ne change ni l'**`AppId`** ni **`AppPublisher` = `GeoAzimut`**, sinon une mise à jour s'installe à côté de l'ancienne version au lieu de la remplacer.
 8. Mentions de copyright présentes partout : fenêtre « À propos », barre d'état, propriétés de l'exécutable, installateur (page de licence), PDF et Excel.
 
@@ -54,9 +54,10 @@ elpro-config/
 │  ├─ elpro_engine.py     ← moteur de règles (NE PAS MODIFIER)
 │  ├─ views.py            ← données prêtes à afficher (NE PAS MODIFIER)
 │  ├─ export_excel.py, export_pdf.py   ← mise en forme seulement
+│  ├─ updater.py          ← mise à jour automatique (NE PAS MODIFIER, identique dans elpro-logs)
 ├─ resources/             ← gabarits XML validés dans CConfig, radio_template.xml (XML de chaque radio), police du PDF, icône
 ├─ examples/              ← demo_site_A/B.json + expected_*.json
-├─ tests/                 ← tests du moteur (35)
+├─ tests/                 ← tests du moteur et de la mise à jour (62) ; ui_acceptance.py = recette de l'interface
 ├─ installer/             ← elpro_config.iss (Inno Setup, UTF-8 avec BOM) + génération de la ressource de version
 └─ docs/                  ← 00_LISEZMOI … 05_Recette (dossier de réalisation)
 ```
@@ -156,6 +157,8 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 5. `gh release create vx.y.z` avec les 3 fichiers, puis `--latest` ;
 6. la vérification de l'empreinte du lien `releases/latest/download/ELPRO_Config_Setup.exe`.
 
+**Mise à jour automatique (depuis la 1.7.0)** : l'application lit `releases/latest` du dépôt et télécharge l'installateur versionné. Les noms des fichiers de la release **`ELPRO_Config_Setup_X.Y.Z.exe`** et **`SHA256SUMS.txt`** sont donc **obligatoires** et ne doivent plus changer (ce sont ceux que produit `build.bat`) ; une release sans ces fichiers n'est pas proposée. Les brouillons et pré-versions sont ignorés. Pour la recette, la variable d'environnement **`ELPRO_VERSION_SIMULEE`** (ex. `1.6.1`) fait comparer l'application aux releases comme si elle était dans cette version : toute la chaîne (proposition, téléchargement, UAC, installation, redémarrage) se teste ainsi avant la publication suivante. Recherche manuelle : bouton « ? » › « Rechercher les mises à jour… ».
+
 **À chaque version :**
 - `version.py` ;
 - une section `## [x.y.z]` dans `CHANGELOG.md`, dont le texte devient les notes de release ;
@@ -176,6 +179,7 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 | 1.5.0 | Entrée analogique (mesure, courant ou tension) et sortie analogique 4-20 mA génériques ; XML de chaque radio (IO Plus et datalog de la base) ; option IO Plus activé / désactivé |
 | 1.6.0 | Entrée analogique : étalonnage (Zero/Span) et seuils d'alarme de la radio |
 | 1.6.1 | Correctif : entrées en tension (AI1/AI2 0-20 V Span 2048 sur 30009/30010, AI3/AI4 0-5 V sur 30011/30012), conversion des fichiers au format 1 |
+| 1.7.0 | Mise à jour automatique depuis les releases GitHub (vérification quotidienne, À propos › Rechercher les mises à jour…, empreinte SHA-256) ; moteur toujours v2.4 |
 
 `CHANGELOG.md` fait foi.
 
@@ -203,6 +207,6 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 ## 9. Pour démarrer
 
 1. Clone le dépôt et lis `docs/00_LISEZMOI.md` à `docs/05_Recette.md`, puis `CHANGELOG.md`.
-2. Crée le venv et lance les tests : `Ran 41 tests … OK`.
+2. Crée le venv et lance les tests : `Ran 62 tests … OK`.
 3. Lance l'application et ouvre `examples/demo_site_B.json`, puis Générer : la page 2 se remplit.
 4. Attends le prochain complément de l'ingénieur. Ne prends pas d'initiative sur les règles radio.

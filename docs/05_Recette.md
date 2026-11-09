@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 41 tests … OK`. Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé, étalonnage et alarme radio d'une entrée analogique, entrées en tension AI1-AI4 et conversion des fichiers au format 1.
+Résultat attendu : `Ran 62 tests … OK` (moteur v2.4 : `test_engine.py`, plus `test_updater.py` pour la mise à jour automatique). Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé, étalonnage et alarme radio d'une entrée analogique, entrées en tension AI1-AI4 et conversion des fichiers au format 1.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -110,3 +110,20 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] Toutes les radios, `.cdb` dans CConfig : E/S AI1 (0-20V) et AI2 (0-20V) Span 2048.
 - [ ] Ouvrir un fichier de la 1.6.0 avec une entrée « AI4 tension » : message de conversion ; l'entrée est en AI2, sans étalonnage ; Générer : version mineure ; registres identiques.
 - [ ] Projets existants sans entrée en tension : « aucune modification ».
+
+## Mise à jour automatique (1.7.0, moteur v2.4)
+
+Contrôlé sans réseau par `tests\ui_acceptance.py` (`U.chercher`, `U.telecharger` et `U.lancer_installation` remplacés) :
+- [ ] À propos : bouton « Rechercher les mises à jour… » à gauche de « Licence » ; il ferme l'À propos et lance la recherche.
+- [ ] Recherche manuelle à jour : « ELPRO Config est à jour (version 1.7.0). » ; erreur : avertissement avec le texte de l'erreur.
+- [ ] Version 9.9.9 : fenêtre « Mise à jour disponible », « ELPRO Config 9.9.9 est disponible », notes affichées.
+- [ ] « Ignorer cette version » : la vérification automatique ne la propose plus, la recherche manuelle si.
+- [ ] Vérification automatique faite il y a moins de 24 h : GitHub n'est pas interrogé ; en erreur : rien d'affiché, nouvel essai au démarrage suivant.
+- [ ] « Installer et redémarrer » : `lancer_installation` appelé une fois, après la fermeture normale.
+- [ ] Projet modifié, « Annuler » à « Enregistrer les modifications ? » : rien n'est lancé, la fenêtre reste ouverte.
+- [ ] Lancement de l'installateur impossible : avertissement, la fenêtre reste ouverte.
+- [ ] `ELPRO Config.exe --verifier` : ligne « OK module de mise à jour et certificats HTTPS ».
+
+À vérifier sous Windows avec le réseau, une fois la 1.7.0 publiée (variable d'environnement `ELPRO_VERSION_SIMULEE`, ex. `1.6.1` : l'application se compare aux releases comme si elle était dans cette version) :
+- [ ] Au démarrage : fenêtre « Mise à jour disponible » ; « Installer et redémarrer » : barre de progression en Mo, autorisation Windows (UAC), installation silencieuse, ELPRO Config redémarre seul.
+- [ ] Refus de l'UAC : l'application se ferme, rien n'est installé ; la relancer à la main.

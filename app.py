@@ -10,7 +10,9 @@ sys.path.insert(0, os.path.join(BASE, 'engine'))
 import tarfile, secrets, string, datetime, xml.etree.ElementTree  # noqa: F401,E401
 import openpyxl, openpyxl.styles, openpyxl.utils  # noqa: F401,E401
 import reportlab.platypus, reportlab.lib.pagesizes, reportlab.pdfbase.ttfonts  # noqa: F401,E401
+import json, ssl, hashlib, tempfile, urllib.parse, urllib.request, urllib.error  # noqa: F401,E401  (updater)
 
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
@@ -25,6 +27,13 @@ def verifier(dossier):
     import elpro_engine as M, views as V, export_excel as XL, export_pdf as PDF
     os.makedirs(dossier, exist_ok=True)
     lignes = []
+    try:                # détecte un exécutable sans SSL ou sans le module de mise à jour
+        import ssl, updater as U
+        ssl.create_default_context()
+        U.version_tuple(APP_VERSION)
+        lignes.append('OK module de mise à jour et certificats HTTPS')
+    except Exception:
+        lignes.append(f'ÉCHEC module de mise à jour et certificats HTTPS :\n{traceback.format_exc()}')
     for nom in ('demo_site_A', 'demo_site_B'):
         try:
             with open(os.path.join(BASE, 'examples', f'{nom}.json'), encoding='utf-8') as f:
@@ -57,6 +66,7 @@ def main():
     app.setWindowIcon(QIcon(os.path.join(BASE, 'resources', 'app_icon.png')))
     f = MainWindow(BASE)
     f.show()
+    QTimer.singleShot(3000, f.verifier_maj_auto)    # mise à jour : jamais en mode --verifier (sorti plus haut)
     if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
         f.ouvrir_fichier(sys.argv[1])
     sys.exit(app.exec())
