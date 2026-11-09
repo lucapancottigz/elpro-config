@@ -5,11 +5,13 @@ import os, sys, json
 
 from PySide6.QtCore import Qt, QSettings, QTimer, QStandardPaths
 from PySide6.QtGui import QAction, QKeySequence
-from PySide6.QtWidgets import (QMainWindow, QTabWidget, QToolBar, QFileDialog, QMessageBox, QLabel, QWidget,
-                               QSizePolicy)
+from PySide6.QtWidgets import (QApplication, QMainWindow, QTabWidget, QToolBar, QFileDialog, QMessageBox, QLabel,
+                               QWidget, QSizePolicy)
 
 import elpro_engine as M
+import updater as U
 from ui.dialogs import AboutDialog, site_affiche
+from ui.mise_a_jour import RechercheMaj, FenetreMaj, APP
 from ui.page_config import PageConfig, projet_vide
 from ui.page_result import PageResult
 from version import APP_VERSION, APP_COMPANY, APP_COPYRIGHT, APP_WEBSITE
@@ -22,6 +24,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.base = base
         self.chemin = None
+        self._installateur = None       # installateur à lancer à la fermeture (mise à jour)
+        self._recherche = None          # RechercheMaj en cours
         self.resize(1280, 820)
 
         self.page_config = PageConfig()
@@ -79,6 +83,51 @@ class MainWindow(QMainWindow):
     def a_propos(self):
         AboutDialog(self, self.base).exec()
 
+    # ================================================================ mise à jour automatique
+    def verifier_maj_auto(self):
+        """Lancée par app.py 3 s après l'ouverture : au plus une recherche par 24 h, silencieuse en cas d'erreur."""
+        U.nettoyer()
+        if not U.verification_due(QSettings().value('maj/derniere_verification', '')):
+            return
+        self._rechercher(manuel=False)
+
+    def rechercher_maj(self):
+        """« Rechercher les mises à jour… » (fenêtre À propos) : affiche aussi « à jour » et les erreurs."""
+        self._rechercher(manuel=True)
+
+    def _rechercher(self, manuel):
+        if self._recherche is not None:     # recherche déjà en cours : pas de double clic
+            return
+        if manuel:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+        self._recherche = RechercheMaj(self)
+        self._recherche.fini.connect(lambda info, erreur: self._fin_recherche(info, erreur, manuel))
+        self._recherche.start()
+
+    def _fin_recherche(self, info, erreur, manuel):
+        self._recherche.wait()
+        self._recherche.deleteLater()
+        self._recherche = None
+        if manuel:
+            QApplication.restoreOverrideCursor()
+            if erreur:
+                QMessageBox.warning(self, 'Mise à jour', erreur)
+            elif info is None:
+                QMessageBox.information(self, 'Mise à jour', f'{APP} est à jour (version {APP_VERSION}).')
+            else:
+                FenetreMaj(self, info).exec()           # même une version ignorée
+            return
+        if erreur:                          # automatique : rien d'affiché, nouvel essai au prochain démarrage
+            return
+        QSettings().setValue('maj/derniere_verification', U.maintenant_iso())
+        if U.a_proposer(info, QSettings().value('maj/version_ignoree', '')):
+            FenetreMaj(self, info).exec()
+
+    def installer_maj(self, chemin):
+        """Installateur téléchargé et vérifié : fermeture normale, puis lancement dans closeEvent."""
+        self._installateur = chemin
+        self.close()
+
     # ================================================================ état du document
     def _charger(self, projet, chemin, modifie=False):
         self.chemin = chemin
@@ -131,8 +180,20 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, e):
         if self._confirmer_abandon():
+            if self._installateur:
+                try:
+                    U.lancer_installation(self._installateur)
+                except U.ErreurMiseAJour as x:
+                    # projet déjà enregistré ou abandonné : l'application reste ouverte
+                    QMessageBox.warning(self, 'Mise à jour', str(x))
+                    self._installateur = None
+                    e.ignore()
+                    return
+            if self._recherche is not None:     # thread encore actif : attendre (délai réseau borné à 15 s)
+                self._recherche.wait()
             e.accept()
         else:
+            self._installateur = None       # fichier téléchargé effacé au prochain démarrage
             e.ignore()
 
     # ================================================================ barre d'outils
