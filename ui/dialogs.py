@@ -599,7 +599,7 @@ class AboutDialog(QDialog):
         super().__init__(parent)
         self.base = base
         self.setWindowTitle("À propos d'ELPRO Config")
-        self.setFixedSize(420, 360)
+        self.setFixedSize(520, 360)     # largeur : 4 boutons, dont « Rechercher les mises à jour… »
         lay = QVBoxLayout(self)
         lay.setSpacing(6)
 
@@ -635,6 +635,9 @@ class AboutDialog(QDialog):
         lay.addStretch(1)
 
         boutons = QHBoxLayout()
+        self.bt_maj = QPushButton('Rechercher les mises à jour…')
+        self.bt_maj.clicked.connect(self.rechercher_maj)
+        boutons.addWidget(self.bt_maj)
         for texte in self.FICHIERS:
             b = QPushButton(texte)
             b.clicked.connect(lambda _=False, t=texte: self.afficher_fichier(t))
@@ -645,6 +648,11 @@ class AboutDialog(QDialog):
         fermer.clicked.connect(self.accept)
         boutons.addWidget(fermer)
         lay.addLayout(boutons)
+
+    def rechercher_maj(self):
+        """Ferme l'À propos, puis la fenêtre principale lance la recherche (pas de barre de menus)."""
+        self.accept()
+        self.parent().rechercher_maj()
 
     def texte_fichier(self, titre):
         """Contenu de LICENSE / THIRD_PARTY_NOTICES.md embarqué avec l'application ('' si absent)."""

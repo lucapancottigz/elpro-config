@@ -2,6 +2,16 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.8.0] — 2026-11-17
+
+### Ajouté
+- Redémarrage automatique des radios (option du site, désactivée par défaut) : chaque remote vérifie toutes les 10 minutes sa liaison avec la base et redémarre seule après 4 h sans liaison (Fail Safe Reboot) ; la base aussi si toutes les remotes sont muettes (IO Plus activé). Au redémarrage, la remote fait renvoyer ses commandes par la base. Le réglage Fail Safe Reboot est dans le XML de chaque radio ; avec le .cdb, il se règle à la main. Moteur v2.5.
+
+## [1.7.0] — 2026-11-09
+
+### Ajouté
+- Mise à jour automatique : ELPRO Config vérifie une fois par jour si une nouvelle version est publiée et l'installe en un clic (À propos › Rechercher les mises à jour…). L'installateur téléchargé est contrôlé par son empreinte SHA-256. Fonctionne à partir de la version suivante : la 1.7.0 s'installe encore à la main.
+
 ## [1.6.1] — 2026-11-02
 
 ### Corrigé

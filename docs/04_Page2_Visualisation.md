@@ -52,7 +52,7 @@ Tous ouvrent une boîte « Enregistrer sous » / « Choisir un dossier » qui pr
 
 Si l'écriture échoue (fichier ouvert dans Excel, droits…) : afficher le message de l'exception, ne rien faire d'autre.
 
-Quand l'option « IO Plus activé dans les fichiers générés » est cochée (`M.ioplus_actif(plan)`), la page 2 affiche « IO Plus : activé » en orange au-dessus de l'arbre.
+Quand l'option « IO Plus activé dans les fichiers générés » est cochée (`M.ioplus_actif(plan)`), la page 2 affiche « IO Plus : activé » en orange au-dessus de l'arbre. De même, avec l'option « Redémarrage automatique des radios » (`M.redemarrage_auto(plan)`), elle affiche « Redémarrage automatique : activé » juste dessous, et l'arbre contient le nœud Fail Safe Blocks › Fail Safe Reboot de chaque radio concernée.
 
 ## Contenu des exports (déjà produit par le moteur — pour information)
 

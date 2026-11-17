@@ -44,6 +44,7 @@ La page 1 produit et relit **exactement** cette structure (`dict` Python, enregi
 | `description` | texte | non | `""` | libre |
 | `localisation` | texte | non | `""` | libre |
 | `ioplus_actif` | booléen | non | `false` | IO Plus livré activé dans les `.sconf` et les XML des radios. `false` et absent sont équivalents : les projets existants ne changent pas (pas de nouvelle version). Passer de `false` à `true` (ou l'inverse) est une modification **mineure** |
+| `redemarrage_auto` | booléen | non | `false` | Redémarrage automatique des radios (Fail Safe Reboot). `false` et absent sont équivalents. Changer l'option est une modification **mineure**. |
 
 ### XML des radios (moteur v2.1)
 

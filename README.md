@@ -57,6 +57,13 @@
 
 **Désinstallation :** Paramètres › Applications › ELPRO Config › Désinstaller. Vos projets dans `Documents\ELPRO Config` sont conservés.
 
+## Mises à jour
+
+- Au démarrage, une fois par jour au plus, ELPRO Config vérifie si une nouvelle version est publiée et propose de l'installer : **Installer et redémarrer**, **Plus tard** ou **Ignorer cette version**. Sans connexion Internet, rien ne s'affiche.
+- L'installateur téléchargé est contrôlé par son empreinte SHA-256, puis installé (autorisation Windows demandée) et l'application redémarre seule.
+- Recherche manuelle : bouton **?** › **Rechercher les mises à jour…**
+- La 1.7.0, première version qui contient cette fonction, s'installe encore à la main.
+
 ## Démarrage rapide
 
 1. Ouvrir un exemple : **Ouvrir** › `examples\demo_site_A.json`.
