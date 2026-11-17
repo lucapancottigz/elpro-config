@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2026 Geoazimut SàRL (https://geoazimut.com). Tous droits réservés.
 """
-Moteur de génération ELPRO GeoAzimut (v2.4) — IMPLÉMENTATION DE RÉFÉRENCE.
+Moteur de génération ELPRO GeoAzimut (v2.5) — IMPLÉMENTATION DE RÉFÉRENCE.
 
 Entrée  : un projet (dict, format décrit dans 03_Modele_de_donnees.md).
 Sorties : - plan (dict)            -> utilisé par la page 2, le PDF et l'Excel
@@ -31,6 +31,17 @@ ACK_FORT = (4, 4000)         # base + remotes qui poussent des alarmes/radars
 ACK_DEFAUT = (3, 2000)
 RESEAU = '192.168.1'
 PASSERELLE = '192.168.1.1'
+
+# ---- redémarrage automatique (Fail Safe Reboot, v2.5), option systeme.redemarrage_auto.
+# Chaque remote lit 30007 de la base (mapping LINKCHK) ; son registre d'échec 15900 est le Reboot Register :
+# 15900 reste à 1 tant qu'aucune lecture ne réussit, la radio redémarre après REBOOT_TIMEOUT_S à 1.
+# Base : 15900 = ET des comflags 151xx (IO Plus) ; 159xx = forçage du mapping SGNL de la station xx.
+REBOOT_REG = 15900
+REBOOT_TIMEOUT_S = 14400     # 4 h, accepté par la radio (export firmware 2.59)
+LINKCHK_PERIODE_S = 600
+LINKCHK_LOCAL = 31900        # destination de la lecture de contrôle sur la remote (valeur inutilisée)
+LINKCHK_DISTANT = 30007      # registre lu sur la base
+REBOOT_FAILSAFE_BASE = 18    # bloc 15900-15917 sur la base
 
 OP = {'NO_OP': 0, 'LOAD': 1, 'STOR': 2, 'SET': 3, 'RES': 4, 'AND': 5, 'OR': 6, 'XOR': 7, 'ADD': 8,
       'SUB': 9, 'MUL': 10, 'DIV': 11, 'GT': 12, 'GE': 13, 'EQ': 14, 'NE': 15, 'LE': 16, 'LT': 17,
@@ -228,8 +239,9 @@ def _contenu(projet):
     import json as _j
     c = _j.loads(_j.dumps({'version': projet.get('version', 1), 'systeme': projet.get('systeme', {}),
                            'radios': projet.get('radios', [])}))
-    if not c['systeme'].get('ioplus_actif'):
-        c['systeme'].pop('ioplus_actif', None)        # option absente = false : pas de différence pour les anciens projets
+    for opt in ('ioplus_actif', 'redemarrage_auto'):
+        if not c['systeme'].get(opt):
+            c['systeme'].pop(opt, None)               # option absente = false : pas de différence pour les anciens projets
     return c
 
 
@@ -366,6 +378,8 @@ def valider(projet):
         E.append('Textes : la suite « ]]> » est interdite (fichiers XML des radios).')
     if not isinstance(s.get('ioplus_actif', False), bool):
         E.append('Système : « IO Plus activé » doit valoir true ou false.')
+    if not isinstance(s.get('redemarrage_auto', False), bool):
+        E.append('Système : « Redémarrage automatique des radios » doit valoir true ou false.')
     if not RE_VERSION.match(version_config(projet)):
         E.append('Version de configuration : format X.Y attendu (ex. 2.1).')
     if not radios:
@@ -874,11 +888,44 @@ def calculer_plan(projet):
         construire_noms_et_dashboard(S, st, registres)
         avertissements += S.pop('_avert', [])
 
+    if s.get('redemarrage_auto') and rem:
+        _ajouter_redemarrage_auto(base, rem)
+
     return {'systeme': dict(s), 'stations': st, 'T': T, 'creneaux': creneaux,
             'avertissements': avertissements,
             'registres': sorted(registres, key=lambda r: r['adresse']),
             'genere_le': datetime.datetime.now().strftime('%d.%m.%Y %H:%M'),
             'version_config': version_config(projet)}
+
+
+def _ajouter_redemarrage_auto(base, rem):
+    """Mappings, blocs fail-safe, IO Plus et noms du redémarrage automatique (v2.5). Le réglage Fail Safe Reboot
+    lui-même (Enable, Register, Timeout) n'existe que dans le XML de la radio : voir xml_radio."""
+    for S in rem:
+        xx = S['xx']
+        S['reads'].append(dict(nom=f"{S['nom']}_LINKCHK", dest=base['uid'], local=LINKCHK_LOCAL, distant=LINKCHK_DISTANT,
+                               nb=1, fail=REBOOT_REG, inv=0, periode=LINKCHK_PERIODE_S, offset=int(xx) * CRENEAU_S,
+                               timeout=TIMEOUT_S))
+        S['failsafe'].append((REBOOT_REG, 1))                          # 15900 = 0 au démarrage
+        S['noms_registres'] += [(REBOOT_REG, 'REBOOT_REQ'), (LINKCHK_LOCAL, 'LINKCHK')]
+        if S['commandes'] or S['consignes']:
+            # au démarrage (15900 = 0) et au retour de la liaison (1 -> 0) : 1 dans 159xx de la base,
+            # qui renvoie aussitôt les commandes de la station (registre de forçage de son mapping SGNL)
+            S['writes'].append(dict(nom='START', dest=base['uid'], local=REBOOT_REG, distant=int(f'159{xx}'),
+                                    nb=1, inv=1, cos=1, force=0, ack=1))
+            sg = next(m for m in base['scatters'] if m['nom'] == f"{S['nom']}-SGNL")
+            sg['force'] = int(f'159{xx}')
+    base['failsafe'].append((REBOOT_REG, REBOOT_FAILSAFE_BASE))
+    base['noms_registres'].append((REBOOT_REG, 'REBOOT_REQ'))
+    # base : 15900 = 1 seulement si TOUTES les remotes sont en perte de communication (agit si IO Plus est activé)
+    lignes = [ligne('LOAD', int(f"151{rem[0]['xx']}"), 'Toutes remotes en perte comm')]
+    lignes += [ligne('AND', int(f"151{S['xx']}"), f"ET {S['nom']} COMFLAG") for S in rem[1:]]
+    base['iop'] += lignes + [ligne('STOR', REBOOT_REG, 'REBOOT_REQ base')]
+
+
+def redemarrage_auto(projet_ou_plan):
+    """Option générale du projet (v2.5) : redémarrage automatique des radios (Fail Safe Reboot). Défaut : désactivé."""
+    return bool(projet_ou_plan.get('systeme', {}).get('redemarrage_auto', False))
 
 
 def ligne(op, val, cmt='', I=0, N=0):
@@ -1115,7 +1162,8 @@ def _row_scatter(m):
          f'          {C("Ack", m["ack"])}\n          {C("Invert", m["inv"])}\n'
          f'          {C("UpdatePeriod", m["periode"])}\n          {C("UpdateOffset", m["offset"])}\n'
          '          <COSDelay>1</COSDelay>\n          <COSEnabled>1</COSEnabled>\n'
-         '          <COSResetsUpdateTimer>0</COSResetsUpdateTimer>\n          <ForceReg>0</ForceReg>\n'
+         '          <COSResetsUpdateTimer>0</COSResetsUpdateTimer>\n'
+         f'          {C("ForceReg", m["force"]) if m.get("force") else "<ForceReg>0</ForceReg>"}\n'
          f'          {C("FailReg", m["fail"])}\n')
     for i in range(1, 33):
         if i <= len(m['paires']):
@@ -1457,9 +1505,14 @@ def xml_radio(plan, S, ioplus_actif=False, maintenant=None):
     sc = []
     for m in S['scatters']:
         paires = [x for l, rr in m['paires'] for x in (l, rr)]
-        sc.append((1, m['nom'], dest(m['dest']), m['ack'], m['inv'], m['periode'], m['offset'], 1, 1, 0, 0,
+        sc.append((1, m['nom'], dest(m['dest']), m['ack'], m['inv'], m['periode'], m['offset'], 1, 1, 0, m.get('force', 0),
                    m['fail'], *paires, *([0] * (64 - len(paires)))))
     _e2_table(r, ('ELPROMesh', 'ScatterMapping'), sc)
+    if redemarrage_auto(plan) and len(plan['stations']) > 1:
+        # Fail Safe Reboot : trois items après ConfigTable (export firmware 2.59) ; absents de CConfig (.cdb)
+        fs = _e2_trouver(r, 'FailSafe')
+        for n, v in (('RebootEnable', 1), ('RebootRegister', REBOOT_REG), ('RebootTimeout', REBOOT_TIMEOUT_S)):
+            ET.SubElement(ET.SubElement(fs, 'item', name=n), 'val').text = str(v)
     if S['sensibilite']:
         _e2_table(r, ('ELPROMesh', 'Sensitivity'), S['sensibilite'])
     # tableau de bord

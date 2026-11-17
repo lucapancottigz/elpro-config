@@ -6,7 +6,7 @@
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Résultat attendu : `Ran 62 tests … OK` (moteur v2.4 : `test_engine.py`, plus `test_updater.py` pour la mise à jour automatique). Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé, étalonnage et alarme radio d'une entrée analogique, entrées en tension AI1-AI4 et conversion des fichiers au format 1.
+Résultat attendu : `Ran 69 tests … OK` (moteur v2.5 : `test_engine.py`, plus `test_updater.py` pour la mise à jour automatique). Ces tests vérifient le moteur sur deux sites de démonstration (`demo_site_A`, `demo_site_B`) : résultats identiques aux fichiers `expected_*.json`, format des fichiers, cohérence IO Plus, grille de polling, comportement du radar, validation, clé, import, version de configuration, feu à 4 sorties, radar sur la base, accents, liste des registres sans registres d'échec, noms de 15 caractères, échelle du radar, tableau de bord de la base, textes avec `\`, maximum de 100 registres de détection, entrée déplacée = modification majeure, PDF avec `<…>` dans le nom, entrées et sorties analogiques génériques, XML des radios, option IO Plus activé, étalonnage et alarme radio d'une entrée analogique, entrées en tension AI1-AI4 et conversion des fichiers au format 1, redémarrage automatique des radios.
 
 ## B. Recette de l'interface (avant livraison)
 
@@ -110,6 +110,18 @@ Cocher chaque ligne. Tout « non » bloque la livraison.
 - [ ] Toutes les radios, `.cdb` dans CConfig : E/S AI1 (0-20V) et AI2 (0-20V) Span 2048.
 - [ ] Ouvrir un fichier de la 1.6.0 avec une entrée « AI4 tension » : message de conversion ; l'entrée est en AI2, sans étalonnage ; Générer : version mineure ; registres identiques.
 - [ ] Projets existants sans entrée en tension : « aucune modification ».
+
+## Redémarrage automatique des radios (1.8.0, moteur v2.5)
+
+Contrôlé par `tests\ui_acceptance.py` :
+- [ ] Projet neuf : case « Redémarrage automatique des radios » décochée, clé absente, pas d'indication sur la page 2.
+- [ ] Cocher : confirmation « Redémarrage automatique » ; Non → case décochée, rien de modifié ; Oui → `redemarrage_auto` = true, version mineure.
+- [ ] Générer : « Redémarrage automatique : activé » en orange ; nœud Fail Safe Blocks › Fail Safe Reboot ; XML d'une remote avec `<item name="RebootEnable">` ; message d'export XML « Redémarrage automatique : activé ».
+- [ ] Export `.cdb` : information « CConfig ne connaît pas le réglage Fail Safe Reboot… » (pas d'information si l'enregistrement est annulé ou l'option décochée).
+- [ ] Décocher : false, sans question, version mineure.
+- [ ] Rouvrir un fichier sans la clé : case décochée, « aucune modification ».
+
+À vérifier sur la radio de banc : charger le XML d'une remote, contrôler Configuration › Failsafe › Fail Safe Reboot (Enable, Reboot Register 15900, Reboot Timeout 14400).
 
 ## Mise à jour automatique (1.7.0, moteur v2.4)
 

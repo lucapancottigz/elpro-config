@@ -110,8 +110,14 @@ class PageConfig(QWidget):
         self.ck_ioplus.setToolTip('Décoché : IO Plus est chargé mais désactivé ; '
                                   'l\'activer à la main sur chaque radio après vérification.')
         self.ck_ioplus.clicked.connect(self._changer_ioplus)
+        self.ck_reboot = QCheckBox('Redémarrage automatique des radios')
+        self.ck_reboot.setToolTip('Chaque radio redémarre seule après 4 h sans liaison avec la base '
+                                  '(Fail Safe Reboot). Réglé par le XML de chaque radio ; avec le .cdb, '
+                                  'à régler à la main sur chaque radio.')
+        self.ck_reboot.clicked.connect(self._changer_reboot)
         grille.addWidget(lab('Clé de chiffrement'), 2, 0); grille.addLayout(cle, 2, 1, 1, 3)
         grille.addWidget(lab('Puissance générale'), 2, 4); grille.addWidget(self.sp_puissance, 2, 5)
+        grille.addWidget(self.ck_reboot, 3, 1, 1, 3)
         grille.addWidget(self.ck_ioplus, 3, 5, 1, 3)
         grille.addWidget(lab('Propriétaire'), 4, 0); grille.addWidget(self.sys['proprietaire'], 4, 1)
         grille.addWidget(lab('Contact'), 4, 2); grille.addWidget(self.sys['contact'], 4, 3)
@@ -225,6 +231,7 @@ class PageConfig(QWidget):
             ed.setText(str(s.get(cle, '') or ''))
         self.sp_puissance.setValue(int(s.get('puissance_dbm', 34) or 34))
         self.ck_ioplus.setChecked(M.ioplus_actif(projet))
+        self.ck_reboot.setChecked(M.redemarrage_auto(projet))
         self.bt_oeil.setChecked(False)
         self._chargement = False
         self._rafraichir_radios(0)
@@ -402,6 +409,17 @@ class PageConfig(QWidget):
             self.ck_ioplus.setChecked(False)
             return
         self._maj_systeme('ioplus_actif', actif)
+
+    def _changer_reboot(self, actif):
+        if actif and QMessageBox.question(
+                self, 'Redémarrage automatique',
+                'Chaque remote redémarrera seule après 4 h sans liaison avec la base, et la base '
+                'aussi si toutes les remotes sont muettes (IO Plus activé). Après un redémarrage, '
+                'les sorties repartent à OFF jusqu\'au renvoi des commandes par la base '
+                '(quelques secondes si la base fonctionne). Continuer ?') != QMessageBox.Yes:
+            self.ck_reboot.setChecked(False)
+            return
+        self._maj_systeme('redemarrage_auto', actif)
 
     def _generer_cle(self):
         rep = QMessageBox.question(self, 'Nouvelle clé de chiffrement',

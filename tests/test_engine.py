@@ -43,6 +43,7 @@ def simuler_iop(lignes, mem, cycles=1):
             elif o == 'ADD': acc = (acc + arg) & 0xFFFF
             elif o == 'SUB': acc = (acc - arg) & 0xFFFF
             elif o == 'OR': acc = acc | arg
+            elif o == 'AND': acc = acc & arg
             elif o == 'XOR': acc = acc ^ arg
             elif o == 'GE': acc = int(acc >= arg)
             elif o == 'LE': acc = int(acc <= arg)
@@ -723,6 +724,119 @@ class TestTensionV24(unittest.TestCase):
         p3, niveau = M.preparer_generation(p2)
         self.assertIsNone(niveau)                               # ensuite : plus aucune différence
         self.assertEqual(M.normaliser_projet(json.loads(json.dumps(p2)))['radios'][0]['peripheriques'][-1]['ai'], 2)
+
+
+class TestRedemarrageAuto(unittest.TestCase):
+    """Redémarrage automatique des radios, Fail Safe Reboot (moteur v2.5)."""
+    plat = staticmethod(TestXmlRadio.plat)
+
+    def plan(self, actif=True, nom='demo_site_B'):
+        p = charger(nom)
+        if actif:
+            p['systeme']['redemarrage_auto'] = True
+        return p, M.calculer_plan(p)
+
+    def test_desactive_par_defaut(self):
+        p, plan = self.plan(False)
+        self.assertFalse(M.redemarrage_auto(p))
+        for S in plan['stations']:
+            I, _T = self.plat(M.xml_radio(plan, S))
+            self.assertFalse([k for k in I if 'Reboot' in k], S['nom'])
+            self.assertFalse(any(m.get('force') for m in S['scatters']))
+            self.assertNotIn(M.REBOOT_REG, [a for a, _c in S['failsafe']])
+
+    def test_remotes(self):
+        p, plan = self.plan()
+        B, rem = plan['stations'][0], plan['stations'][1:]
+        for S in rem:
+            xx = S['xx']
+            lk = [m for m in S['reads'] if m['nom'] == f"{S['nom']}_LINKCHK"]
+            self.assertEqual(lk, [dict(nom=f"{S['nom']}_LINKCHK", dest='UID1', local=31900, distant=30007, nb=1, fail=15900,
+                                       inv=0, periode=600, offset=int(xx) * 22, timeout=20)])
+            self.assertLess(lk[0]['offset'], 600)
+            self.assertIn((15900, 1), S['failsafe'])
+            self.assertIn((15900, 'REBOOT_REQ'), S['noms_registres'])
+            sg = [m for m in B['scatters'] if m['nom'] == f"{S['nom']}-SGNL"]
+            st_ = [m for m in S['writes'] if m['nom'] == 'START']
+            if S['commandes'] or S['consignes']:
+                self.assertEqual(st_, [dict(nom='START', dest='UID1', local=15900, distant=int(f'159{xx}'), nb=1, inv=1,
+                                            cos=1, force=0, ack=1)])
+                self.assertEqual(sg[0]['force'], int(f'159{xx}'))
+            else:
+                self.assertEqual((st_, sg), ([], []))
+        self.assertTrue(any(S['commandes'] for S in rem) and any(not S['commandes'] for S in rem))
+        self.assertEqual(B['failsafe'][-1], (15900, 18))
+        self.assertFalse(B['reads'][0]['nom'].endswith('LINKCHK'))
+        # la grille de polling de la base ne change pas
+        _p0, plan0 = self.plan(False)
+        self.assertEqual((plan['T'], plan['creneaux'], plan['registres']), (plan0['T'], plan0['creneaux'], plan0['registres']))
+
+    def test_ioplus_base(self):
+        _p, plan = self.plan()
+        B, rem = plan['stations'][0], plan['stations'][1:]
+        fails = [int(f'{f}{S["xx"]}') for S in rem for f in range(152, 159)] + [int(f'155{S["xx"]}') for S in rem]
+        mem = simuler_iop(B['iop'], {a: 1 for a in fails})
+        self.assertEqual(mem[15900], 1)                          # toutes les remotes muettes
+        mem = {a: 1 for a in fails}; mem[int(f"152{rem[-1]['xx']}")] = 0; mem[int(f"155{rem[-1]['xx']}")] = 0
+        self.assertEqual(simuler_iop(B['iop'], mem)[15900], 0)   # une seule remote répond
+        self.assertLessEqual(len(B['iop']), 300)
+
+    def test_xml(self):
+        _p, plan = self.plan()
+        for S in plan['stations']:
+            txt = M.xml_radio(plan, S)
+            I, T = self.plat(txt)
+            self.assertEqual((I['/FailSafe/RebootEnable'], I['/FailSafe/RebootRegister'], I['/FailSafe/RebootTimeout']),
+                             ('1', '15900', '14400'), S['nom'])
+            g = txt[txt.index('<group name="FailSafe">'):]
+            g = g[:g.index('</group>')]
+            self.assertLess(g.index('</table>'), g.index('RebootEnable'))      # après ConfigTable, comme l'export
+            self.assertLess(g.index('RebootEnable'), g.index('RebootRegister'))
+            self.assertLess(g.index('RebootRegister'), g.index('RebootTimeout'))
+            self.assertIn('    <item name="RebootTimeout">\n      <val><![CDATA[14400]]></val>\n    </item>', txt)
+            self.assertEqual(T['/FailSafe/ConfigTable'], [[str(a), str(c), '0', '1', '0', '0', '0'] for a, c in S['failsafe']])
+            if S['role'] == 'base':
+                for m, l in zip(S['scatters'], T['/ELPROMesh/ScatterMapping']):
+                    self.assertEqual((l[1], l[10]), (m['nom'], str(m.get('force', 0))))
+                self.assertTrue(any(l[10].startswith('159') for l in T['/ELPROMesh/ScatterMapping']))
+            else:
+                self.assertIn(['1', f"{S['nom']}_LINKCHK", plan['stations'][0]['ip'], '0', '600', str(int(S['xx']) * 22),
+                               '20', '0', '15900', '31900', '30007', '1'], T['/ELPROMesh/ReadMapping'])
+
+    def test_cdb_et_vues(self):
+        import views as V
+        p, plan = self.plan()
+        with tempfile.TemporaryDirectory() as d:
+            _plan, f = M.generer_tout(p, d)
+            cdb = Path(f[0]).read_text(encoding='utf-16')
+            self.assertNotIn('Reboot', cdb)                      # absent de CConfig : XML seulement
+            self.assertIn('<ForceReg d="C">15904</ForceReg>', cdb)
+            self.assertIn('<FailReg d="C">15900</FailReg>', cdb)
+            self.assertIn('<Name>B-F2_LINKCHK</Name>', cdb)
+        ck = next(s for s in V.donnees_pdf(plan) if s['titre'].startswith('4.'))['blocs'][0]['items']
+        self.assertTrue(any('Fail Safe Reboot' in x and '.cdb' in x for x in ck))
+        synthese = dict(V.donnees_pdf(plan)[0]['blocs'][0]['contenu'])
+        self.assertTrue(synthese['Redémarrage automatique'].startswith('activé'))
+        self.assertTrue(any(n['chemin'][-1] == 'Fail Safe Reboot' for n in V.vue_page2(plan)))
+        _p0, plan0 = self.plan(False)
+        self.assertEqual(dict(V.donnees_pdf(plan0)[0]['blocs'][0]['contenu'])['Redémarrage automatique'], 'désactivé')
+        self.assertFalse(any(n['chemin'][-1] == 'Fail Safe Reboot' for n in V.vue_page2(plan0)))
+
+    def test_base_seule(self):
+        p = charger('demo_site_A'); p['radios'] = p['radios'][:1]; p['systeme']['redemarrage_auto'] = True
+        plan = M.calculer_plan(p)
+        I, _T = self.plat(M.xml_radio(plan, plan['stations'][0]))
+        self.assertNotIn('/FailSafe/RebootEnable', I)            # rien pour déclencher : rien n'est activé
+
+    def test_option(self):
+        p = charger('demo_site_B')
+        p['systeme']['redemarrage_auto'] = 'oui'
+        self.assertTrue(any('Redémarrage automatique' in e for e in M.valider(p)))
+        p['systeme']['redemarrage_auto'] = False
+        self.assertEqual(M.valider(p), [])
+        self.assertEqual(M.classer_modification(p, dict(p, systeme=dict(p['systeme'], redemarrage_auto=True))), 'mineure')
+        q = dict(p, systeme={k: v for k, v in p['systeme'].items() if k != 'redemarrage_auto'})
+        self.assertIsNone(M.classer_modification(q, p))          # false = absent : aucune modification
 
 
 if __name__ == '__main__':

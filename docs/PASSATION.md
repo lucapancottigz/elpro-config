@@ -11,7 +11,7 @@ Document de reprise pour le nouveau programmeur. À lire en entier avant toute m
 | Élément | Valeur |
 |---|---|
 | Dépôt | `lucapancottigz/elpro-config` (**public**) |
-| Dernière version publiée | **1.7.0** (moteur de règles v2.4) |
+| Dernière version publiée | **1.8.0** (moteur de règles v2.5) |
 | Langage / interface | Python 3.11+ / PySide6 |
 | Distribution | Installateur Inno Setup publié dans les Releases GitHub |
 | Licence | Propriétaire : « © 2026 Geoazimut SàRL. Tous droits réservés. », geoazimut.com (fichier `LICENSE`) |
@@ -38,7 +38,7 @@ Circuit d'une version : besoin du propriétaire → complément de l'ingénieur 
 3. **Aucune donnée réelle dans le dépôt**, qui est public : ni nom de client ou de site, ni clé de chiffrement, ni plan IP réel, ni `.elpro.json` ou `.cdb` de site. Seuls les exemples fictifs (`demo_site_A`, `demo_site_B`) y figurent.
 4. **Noms de fichiers et dossiers de code en anglais** ; **commentaires, docstrings, documentation et interface en français**.
 5. **Les fichiers produits pour l'utilisateur gardent des noms français** : `_Compte_rendu.pdf`, `_Adresses.xlsx`, `IOPlus_<radio>_V<x.y>_DESACTIVE.sconf` (ou `_ACTIVE`), `<projet>_V<x.y>_<radio>.xml`, `.elpro.json`. Les accents sont retirés des noms de fichiers.
-6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 62 tests … OK`** (moteur v2.4 et mise à jour automatique). `build.bat` le vérifie aussi.
+6. Avant toute livraison : `.\venv\Scripts\python.exe -m unittest discover -s tests -v` doit afficher **`Ran 69 tests … OK`** (moteur v2.5 et mise à jour automatique). `build.bat` le vérifie aussi.
 7. Installateur : ne change ni l'**`AppId`** ni **`AppPublisher` = `GeoAzimut`**, sinon une mise à jour s'installe à côté de l'ancienne version au lieu de la remplacer.
 8. Mentions de copyright présentes partout : fenêtre « À propos », barre d'état, propriétés de l'exécutable, installateur (page de licence), PDF et Excel.
 
@@ -97,6 +97,7 @@ Toute modification en page 1 efface le plan et grise les exports.
 - **Topologie :** une base, la centrale d'alarme, et jusqu'à 17 radios, remotes et repeaters, en mode Fixed Links. Réseau local 192.168.1.0/24, base en `.100`.
 - **Polling :** la base interroge chaque remote dans des créneaux de **22 s**. Un cycle dure T = nombre de créneaux × 22 s.
 - **IO Plus de la base :** pour chaque remote, comflag = (toutes ses lectures ont échoué) OU (l'envoi des commandes a échoué). Le `.sconf` (tar.gz contenant `Logic.conf` et `Logic.version`) est **livré désactivé** par défaut (`Enabled 0`) : le propriétaire l'active à la main. L'option du projet « IO Plus activé dans les fichiers générés » (`systeme.ioplus_actif`) le livre activé dans les `.sconf` et les XML.
+- **Redémarrage automatique :** nouvelle option par site, **désactivée par défaut** : `systeme.redemarrage_auto` (booléen ; absent = `false`). Quand elle est cochée, chaque remote (et chaque repeater) vérifie toutes les 10 minutes qu'elle peut lire la base. Après **4 h sans aucune lecture réussie**, la radio redémarre seule (fonction « Fail Safe Reboot » de la radio). La base redémarre aussi si **toutes** les remotes sont muettes pendant 4 h, à condition qu'IO Plus soit activé. Après un redémarrage, la remote demande à la base de renvoyer aussitôt ses commandes (feux, sirènes). Le réglage « Fail Safe Reboot » n'existe que dans le XML de chaque radio (CConfig ne le connaît pas) ; avec le `.cdb`, il se règle à la main sur chaque radio.
 - **Fail-safe :** commandes 401 × 50.
 
 **Plan de registres de la base**
@@ -180,6 +181,7 @@ Environnement Windows de test : Python peut ne pas être dans le PATH ; ne suppo
 | 1.6.0 | Entrée analogique : étalonnage (Zero/Span) et seuils d'alarme de la radio |
 | 1.6.1 | Correctif : entrées en tension (AI1/AI2 0-20 V Span 2048 sur 30009/30010, AI3/AI4 0-5 V sur 30011/30012), conversion des fichiers au format 1 |
 | 1.7.0 | Mise à jour automatique depuis les releases GitHub (vérification quotidienne, À propos › Rechercher les mises à jour…, empreinte SHA-256) ; moteur toujours v2.4 |
+| 1.8.0 | Redémarrage automatique des radios (option du site, Fail Safe Reboot) ; moteur v2.5 |
 
 `CHANGELOG.md` fait foi.
 

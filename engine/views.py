@@ -83,7 +83,7 @@ def vue_page2(plan):
         for i, m in enumerate(S['scatters'], 1):
             lignes.append([i, 'Gather/Scatter', '✔', m['nom'], _dest(plan, m['dest']),
                            ' ; '.join(f'{a}→{b}' for a, b in m['paires']), '', len(m['paires']),
-                           'Oui' if m['inv'] else '', hms(m['periode']), hms(m['offset']), 'Disabled',
+                           'Oui' if m['inv'] else '', hms(m['periode']), hms(m['offset']), m.get('force') or 'Disabled',
                            _nom_reg(S, plan, m['fail']) if m['fail'] else 'Disabled'])
         for i, m in enumerate(S['writes'], 1):
             lignes.append([i, 'Write', '✔', m['nom'], _dest(plan, m['dest']), m['local'], m['distant'], m['nb'],
@@ -120,6 +120,10 @@ def vue_page2(plan):
         N.append({'chemin': racine + ['Fail Safe Blocks'], 'type': 'tables', 'contenu': [
             {'titre': 'Fail Safe Blocks', 'colonnes': ['#', 'First Register', 'Count', 'Update Time', 'Startup Value', 'Fail Value'],
              'lignes': [[i, _nom_reg(S, plan, a), c, 0, 'OFF', 'OFF'] for i, (a, c) in enumerate(S['failsafe'], 1)]}]})
+        if _reboot(plan):
+            N.append({'chemin': racine + ['Fail Safe Blocks', 'Fail Safe Reboot'], 'type': 'formulaire', 'contenu': [
+                ('Enable', 'Oui'), ('Reboot Register', _nom_reg(S, plan, M.REBOOT_REG)),
+                ('Reboot Timeout (s)', M.REBOOT_TIMEOUT_S), ('Programmé par', 'XML de la radio uniquement (absent de CConfig)')]})
         sens = S['sensibilite'] or [(30001, 12, 1000), (38001, 24, 0.5)]
         N.append({'chemin': racine + ['Sensitivity Blocks'], 'type': 'tables', 'contenu': [
             {'titre': 'Sensitivity Blocks', 'colonnes': ['#', 'First Register', 'Count', 'Sensitivity'],
@@ -142,6 +146,11 @@ def vue_page2(plan):
                  'lignes': [[i, NOM_OP[l[0]], '✔' if l[1] else '', '✔' if l[2] else '', l[4], l[5]]
                             for i, l in enumerate(S['iop'], 1)]}]})
     return N
+
+
+def _reboot(plan):
+    """Redémarrage automatique effectivement généré (option cochée et au moins une remote)."""
+    return M.redemarrage_auto(plan) and len(plan['stations']) > 1
 
 
 def _cablage(S, plan):
@@ -199,6 +208,8 @@ def donnees_pdf(plan):
             ('Fréquence', '433,925 MHz'), ('Largeur de canal', '25 kHz (Bandwidth 2)'),
             ('Puissance générale', f"{s.get('puissance_dbm', 34)} dBm"), ('Chiffrement', 'AES 256 bit'),
             ('NTP', '195.176.26.204'), ('Cycle de polling', f"{plan['T']} s ({len(plan['creneaux'])} créneaux de {CRENEAU_S} s)"),
+            ('Redémarrage automatique', f"activé : après {M.REBOOT_TIMEOUT_S // 3600} h sans liaison (registre {M.REBOOT_REG})"
+                                        if _reboot(plan) else 'désactivé'),
             ('Généré le', plan['genere_le'])]},
         {'type': 'table', 'titre': 'Topologie', 'colonnes': ['Index', 'Radio', 'Rôle', 'IP', 'Amont', 'Puissance', 'IO Plus'],
          'lignes': [[S['xx'], S['nom'], ROLE_FR[S['role']], S['ip'], S['amont'] or '—', f"{S['puissance_dbm']} dBm",
@@ -264,5 +275,18 @@ def donnees_pdf(plan):
     for c in B.get('consignes', []):
         ck.append(f"{B['nom']} : écrire {c['rp1']} puis {c['rp2']} dans {c['adresse']} → AO{c['ao']} passe à 4 puis 20 mA.")
     ck.append(f"Redémarrer {B['nom']} : tous les comflags et registres d'échec repartent à 0, 10501/30501/35101 se remplissent.")
+    if _reboot(plan):
+        R, H = M.REBOOT_REG, M.REBOOT_TIMEOUT_S // 3600
+        ck.append(f"Redémarrage automatique : avec le .cdb, régler à la main sur CHAQUE radio Configuration → Failsafe → "
+                  f"Fail Safe Reboot : Enable, Reboot Register {R}, Reboot Timeout {M.REBOOT_TIMEOUT_S} (absents de CConfig). "
+                  f"Avec le XML : déjà réglé.")
+        for S in st[1:]:
+            ck.append(f"{S['nom']} : liaison normale → {R} = 0 (I/O Diagnostics) ; {R} = 1 dès qu'une lecture "
+                      f"{S['nom']}_LINKCHK échoue ; redémarrage après {H} h continues à 1.")
+            if S['commandes'] or S['consignes']:
+                ck.append(f"{S['nom']} : redémarrer la radio avec une commande à 1 → la sortie revient en quelques secondes "
+                          f"(écriture START → forçage 159{S['xx']} de la base).")
+        ck.append(f"{B['nom']} : redémarrage automatique seulement si IO Plus est activé ({R} = 1 quand toutes les remotes "
+                  f"sont en perte de communication).")
     sections.append({'titre': '4. Checklist de mise en service', 'blocs': [{'type': 'checklist', 'items': ck}]})
     return sections

@@ -2,6 +2,11 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Numérotation [SemVer](https://semver.org/lang/fr/).
 
+## [1.8.0] — 2026-11-17
+
+### Ajouté
+- Redémarrage automatique des radios (option du site, désactivée par défaut) : chaque remote vérifie toutes les 10 minutes sa liaison avec la base et redémarre seule après 4 h sans liaison (Fail Safe Reboot) ; la base aussi si toutes les remotes sont muettes (IO Plus activé). Au redémarrage, la remote fait renvoyer ses commandes par la base. Le réglage Fail Safe Reboot est dans le XML de chaque radio ; avec le .cdb, il se règle à la main. Moteur v2.5.
+
 ## [1.7.0] — 2026-11-09
 
 ### Ajouté

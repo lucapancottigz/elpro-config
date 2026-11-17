@@ -33,6 +33,10 @@ class PageResult(QWidget):
         self.lb_ioplus.setStyleSheet('color:#E67E00; font-weight:bold;')
         self.lb_ioplus.hide()
         lay.addWidget(self.lb_ioplus)
+        self.lb_reboot = QLabel('Redémarrage automatique : activé')
+        self.lb_reboot.setStyleSheet('color:#E67E00; font-weight:bold;')
+        self.lb_reboot.hide()
+        lay.addWidget(self.lb_reboot)
 
         self.pile = QStackedWidget()
         vide = QLabel(MSG_VIDE); vide.setAlignment(Qt.AlignCenter); vide.setWordWrap(True)
@@ -72,6 +76,7 @@ class PageResult(QWidget):
         self.pile.setCurrentIndex(0)
         self.bandeau.setVisible(modifiee)
         self.lb_ioplus.hide()
+        self.lb_reboot.hide()
         for bt in self.boutons:
             bt.setEnabled(False)
 
@@ -79,6 +84,7 @@ class PageResult(QWidget):
         self.plan = plan
         self.bandeau.hide()
         self.lb_ioplus.setVisible(M.ioplus_actif(plan))
+        self.lb_reboot.setVisible(M.redemarrage_auto(plan))
         self.arbre.blockSignals(True)
         self.arbre.clear()
         self.noeuds = {}
@@ -203,13 +209,21 @@ class PageResult(QWidget):
             return
         self._memoriser(chemin)
         self._succes(f'Fichier créé : {os.path.normpath(chemin)}', os.path.dirname(chemin))
+        return True
 
     def _titre(self):
         """Titre du PDF et en-tête de l'Excel : « Demo Site A — V2.1 »."""
         return f"{self.plan['systeme']['nom_projet']} — V{self.plan['version_config']}"
 
     def _export_cdb(self):
-        self._enregistrer('.cdb', 'CConfig (*.cdb)', lambda c: M.ecrire_cdb(self.plan, c))
+        if self._enregistrer('.cdb', 'CConfig (*.cdb)', lambda c: M.ecrire_cdb(self.plan, c)) \
+                and M.redemarrage_auto(self.plan):
+            QMessageBox.information(
+                self, 'Redémarrage automatique',
+                'CConfig ne connaît pas le réglage Fail Safe Reboot : il n\'est pas dans le .cdb. '
+                'Après le chargement, sur la page web de chaque radio, Configuration › Failsafe › '
+                'Fail Safe Reboot : cocher Enable, Reboot Register 15900, Reboot Timeout 14400. '
+                'Les XML des radios le contiennent déjà.')
 
     def _export_pdf(self):
         self._enregistrer('_Compte_rendu.pdf', 'PDF (*.pdf)',
@@ -243,5 +257,7 @@ class PageResult(QWidget):
             return
         etat = 'activé' if M.ioplus_actif(self.plan) else 'désactivé'
         self._export_dossier(M.ecrire_xml_radios,
-                             f"\n\nIO Plus : {etat}\nSur la base, régler à la main Scan Rate {M.LOG_REGLAGES['Scan Rate']} et "
+                             f"\n\nIO Plus : {etat}"
+                             f"\nRedémarrage automatique : {'activé' if M.redemarrage_auto(self.plan) else 'désactivé'}"
+                             f"\nSur la base, régler à la main Scan Rate {M.LOG_REGLAGES['Scan Rate']} et "
                              f"Records per File {M.LOG_REGLAGES['Records per File']} (page Datalog).")

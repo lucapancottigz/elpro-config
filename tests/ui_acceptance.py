@@ -952,6 +952,57 @@ def main():
     verifier(p1.projet['version'] == M.FORMAT_PROJET == 2, 'nouveau projet : version = M.FORMAT_PROJET (2)')
     REPONSES['question'] = QMessageBox.Discard
 
+    print('Redémarrage automatique des radios (moteur v2.5)')
+    F.nouveau()
+    verifier(not p1.ck_reboot.isChecked() and 'redemarrage_auto' not in p1.projet['systeme'] and p2.lb_reboot.isHidden(),
+             'projet neuf : case décochée, clé absente, pas d\'indication sur la page 2')
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
+    F.generer()                                       # V1.0, sans l'option
+    verifier(p2.lb_reboot.isHidden() and not any(ch[-1] == 'Fail Safe Reboot' for ch in p2.noeuds),
+             'demo_site_B sans l\'option : pas d\'indication, pas de nœud « Fail Safe Reboot »')
+    REPONSES['question'] = QMessageBox.No
+    MESSAGES.clear()
+    p1.ck_reboot.click()
+    verifier(dernier('question') and dernier('question')[1] == 'Redémarrage automatique'
+             and '4 h sans liaison' in dernier('question')[2] and not p1.ck_reboot.isChecked()
+             and not M.redemarrage_auto(p1.projet), 'cocher : confirmation ; Non → case décochée, option inactive')
+    REPONSES['question'] = QMessageBox.Yes
+    p1.ck_reboot.click()
+    verifier(p1.ck_reboot.isChecked() and p1.projet['systeme']['redemarrage_auto'] is True
+             and p1.lb_version.text() == 'Modification mineure — prochaine génération : V1.1',
+             'Oui → redemarrage_auto = true, libellé mineure V1.1')
+    F.generer()
+    d_xml, _x = exporter('xml_reboot', p2._export_xml)
+    rem = xml_radio(d_xml, 'B-SM1')
+    verifier(p1.projet['version_config'] == '1.1' and not p2.lb_reboot.isHidden()
+             and any(ch[-2:] == ('Fail Safe Blocks', 'Fail Safe Reboot') for ch in p2.noeuds),
+             'générer : V1.1, « Redémarrage automatique : activé », nœud Fail Safe Blocks › Fail Safe Reboot')
+    verifier(any(i.get('name') == 'RebootEnable' for i in rem.iter('item'))
+             and 'Redémarrage automatique : activé' in dernier('box')[2],
+             'XML de B-SM1 : <item name="RebootEnable"> ; message d\'export « Redémarrage automatique : activé »')
+    MESSAGES.clear()
+    REPONSES['fichier'] = os.path.join(tmp, 'reboot.cdb'); p2._export_cdb()
+    m = dernier('information')
+    verifier(m and m[1] == 'Redémarrage automatique' and 'Reboot Register 15900, Reboot Timeout 14400' in m[2]
+             and os.path.getsize(REPONSES['fichier']) > 0, 'export .cdb : information Fail Safe Reboot à régler à la main')
+    MESSAGES.clear()
+    REPONSES['fichier'] = ''; p2._export_cdb()
+    verifier(not dernier('information'), 'export .cdb annulé : pas d\'information')
+    MESSAGES.clear()
+    p1.ck_reboot.click()
+    verifier(not dernier('question') and p1.projet['systeme']['redemarrage_auto'] is False
+             and p1.lb_version.text() == 'Modification mineure — prochaine génération : V1.2',
+             'décocher : false, sans question, mineure V1.2')
+    F.generer()
+    MESSAGES.clear()
+    REPONSES['fichier'] = os.path.join(tmp, 'reboot_off.cdb'); p2._export_cdb()
+    verifier(p2.lb_reboot.isHidden() and not dernier('information'), 'option décochée : page 2 sans indication, .cdb sans information')
+    REPONSES['question'] = QMessageBox.Discard
+    F.ouvrir_fichier(os.path.join(ex, 'demo_site_B.json'))
+    F.generer()
+    verifier(not p1.ck_reboot.isChecked() and F.statusBar().currentMessage() == 'Configuration générée — version V1.0 (aucune modification)',
+             'rouvrir un fichier sans la clé : case décochée, aucune nouvelle version')
+
     print('Mise à jour automatique')
     import updater as U
     import app as application

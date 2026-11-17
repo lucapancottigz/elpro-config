@@ -50,6 +50,7 @@ M.ecrire_cdb(plan, chemin)                  # écrit le .cdb (UTF-16, prêt pour
 M.ecrire_sconf_tous(plan, dossier)          # écrit les .sconf (_ACTIVE ou _DESACTIVE selon l'option IO Plus)
 M.ecrire_xml_radios(plan, dossier)          # écrit le XML de chaque radio ; renvoie la liste des chemins
 M.ioplus_actif(plan)                        # option systeme.ioplus_actif (absente = False)
+M.redemarrage_auto(plan)                    # option systeme.redemarrage_auto (absente = False), moteur v2.5
 noeuds  = V.vue_page2(plan)                 # contenu de la page 2
 XL.ecrire_excel(V.donnees_excel(plan), chemin, plan['systeme']['nom_projet'])
 PDF.ecrire_pdf(V.donnees_pdf(plan), chemin, plan['systeme']['nom_projet'])
