@@ -24,6 +24,7 @@ Ce dossier contient tout ce qu'il faut pour réaliser l'application. **Tu n'as p
 | `examples/*.json` | Deux projets de démonstration fictifs (`demo_site_A`, `demo_site_B`). `demo_site_B` contient un radar sur B-SM3 | **NON** |
 | `examples/expected_*.json` | Résultats attendus du moteur pour ces projets | **NON** |
 | `tests/test_engine.py` | Tests automatiques du moteur | **NON** |
+| `engine/updater.py`, `tests/test_updater.py` | Mise à jour automatique depuis les releases GitHub et ses tests (identiques dans ELPRO Logs) | **NON** |
 
 ## Règles de travail
 
@@ -37,7 +38,7 @@ Ce dossier contient tout ce qu'il faut pour réaliser l'application. **Tu n'as p
 
 | Étape | Livrable | Contrôle |
 |---|---|---|
-| 1 | Environnement Python + lancement des tests | 41 tests `OK` |
+| 1 | Environnement Python + lancement des tests | 62 tests `OK` (moteur v2.4) |
 | 2 | Fenêtre principale avec 2 onglets vides | L'application s'ouvre |
 | 3 | Page 1 complète (`02_Page1_Configuration.md`) | Ouvrir `examples/demo_site_A.json` puis l'enregistrer : fichier identique |
 | 4 | Bouton « Générer » de la page 1 | Messages d'erreur affichés ; projet valide → page 2 remplie |

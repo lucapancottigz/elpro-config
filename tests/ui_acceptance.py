@@ -952,6 +952,141 @@ def main():
     verifier(p1.projet['version'] == M.FORMAT_PROJET == 2, 'nouveau projet : version = M.FORMAT_PROJET (2)')
     REPONSES['question'] = QMessageBox.Discard
 
+    print('Mise à jour automatique')
+    import updater as U
+    import app as application
+    from ui.mise_a_jour import FenetreMaj
+    from PySide6.QtWidgets import QPushButton
+    appels = {'chercher': 0, 'lancer': []}
+    reponse = {'chercher': None, 'telecharger': None}
+
+    def faux_chercher(depot, version, prefixe, *a, **k):     # sans réseau
+        appels['chercher'] += 1
+        if isinstance(reponse['chercher'], Exception):
+            raise reponse['chercher']
+        return reponse['chercher']
+
+    exe = os.path.join(tmp, 'ELPRO_Config_Setup_9.9.9.exe')
+
+    def faux_telecharger(info, progression=None, annule=None, **k):
+        if reponse['telecharger']:
+            raise reponse['telecharger']
+        progression(1048576, 2097152)
+        progression(2097152, 2097152)
+        return exe
+
+    def faux_lancer(chemin):
+        appels['lancer'].append(chemin)
+
+    origines = U.chercher, U.telecharger, U.lancer_installation
+    U.chercher, U.telecharger, U.lancer_installation = faux_chercher, faux_telecharger, faux_lancer
+    info = {'version': '9.9.9', 'notes': '## Nouveautés\n- Correctif de recette', 'publiee': '',
+            'page': 'https://github.com/lucapancottigz/elpro-config/releases/tag/v9.9.9',
+            'installateur': {'nom': os.path.basename(exe), 'url': '', 'taille': 2097152}, 'empreintes': ''}
+    QSettings().remove('maj')
+    ouvertes = []
+    QDialog.exec = lambda self: ouvertes.append(self) or 0    # fenêtres modales simulées
+
+    def attendre(fen):
+        """Fin du thread RechercheMaj et traitement de son signal « fini »."""
+        for _ in range(1000):
+            t = fen._recherche
+            if t is None:
+                return
+            t.wait(10)
+            app.processEvents()
+
+    def fenetre_maj():
+        return next((d for d in ouvertes if isinstance(d, FenetreMaj)), None)
+
+    F.action_a_propos.trigger()
+    apropos = next((d for d in ouvertes if isinstance(d, dialogs.AboutDialog)), None)
+    rangee = apropos.layout().itemAt(apropos.layout().count() - 1).layout()
+    ordre = [rangee.itemAt(i).widget().text() for i in range(rangee.count())
+             if isinstance(rangee.itemAt(i).widget(), QPushButton)]
+    verifier(ordre[:2] == ['Rechercher les mises à jour…', 'Licence'],
+             'À propos : bouton « Rechercher les mises à jour… » à gauche de « Licence »')
+    MESSAGES.clear(); ouvertes.clear()
+    apropos.bt_maj.click()
+    attendre(F)
+    verifier(apropos.result() == QDialog.Accepted and appels['chercher'] == 1
+             and dernier() == ('information', 'Mise à jour', f'ELPRO Config est à jour (version {APP_VERSION}).'),
+             'recherche manuelle, à jour : À propos fermé, « ELPRO Config est à jour (version …) »')
+    MESSAGES.clear()
+    reponse['chercher'] = U.ErreurMiseAJour('Pas de connexion…')
+    F.rechercher_maj(); attendre(F)
+    verifier(dernier() == ('warning', 'Mise à jour', 'Pas de connexion…'), 'recherche manuelle, erreur : avertissement')
+    reponse['chercher'] = info
+    ouvertes.clear()
+    F.rechercher_maj(); attendre(F)
+    fen = fenetre_maj()
+    verifier(fen is not None and fen.windowTitle() == 'Mise à jour disponible'
+             and fen.entete.text() == f'ELPRO Config 9.9.9 est disponible. Version installée : {APP_VERSION}.'
+             and 'Correctif de recette' in fen.notes.toPlainText() and fen.bt_installer.isDefault(),
+             'version 9.9.9 : « ELPRO Config 9.9.9 est disponible » et notes affichées')
+    fen.bt_ignorer.click()
+    verifier(QSettings().value('maj/version_ignoree') == '9.9.9', 'Ignorer cette version : maj/version_ignoree = 9.9.9')
+    QSettings().remove('maj/derniere_verification')
+    ouvertes.clear(); avant = appels['chercher']
+    F.verifier_maj_auto(); attendre(F)
+    verifier(appels['chercher'] == avant + 1 and fenetre_maj() is None
+             and not U.verification_due(QSettings().value('maj/derniere_verification', '')),
+             'vérification automatique : version ignorée non proposée, date mémorisée')
+    F.rechercher_maj(); attendre(F)
+    verifier(fenetre_maj() is not None, 'recherche manuelle : la version ignorée est proposée')
+    avant = appels['chercher']
+    F.verifier_maj_auto(); attendre(F)
+    verifier(appels['chercher'] == avant, 'vérification automatique faite il y a moins de 24 h : chercher non appelé')
+    QSettings().remove('maj')
+    reponse['chercher'] = U.ErreurMiseAJour('Pas de connexion…')
+    MESSAGES.clear(); ouvertes.clear()
+    F.verifier_maj_auto(); attendre(F)
+    verifier(not MESSAGES and not ouvertes and not QSettings().value('maj/derniere_verification', ''),
+             'vérification automatique en erreur : rien affiché, date non mémorisée')
+    QSettings().remove('maj')
+    reponse['chercher'] = info
+    ouvertes.clear()
+    F.verifier_maj_auto(); attendre(F)
+    verifier(fenetre_maj() is not None, 'vérification automatique : nouvelle version proposée')
+
+    G = MainWindow(RACINE); G.show()
+    MESSAGES.clear()
+    reponse['telecharger'] = U.ErreurMiseAJour('Téléchargement annulé.')
+    FenetreMaj(G, info).installer()
+    verifier(not MESSAGES and not appels['lancer'] and G.isVisible(), 'téléchargement annulé : aucun message')
+    reponse['telecharger'] = None
+    FenetreMaj(G, info).installer()
+    verifier(appels['lancer'] == [exe] and not G.isVisible(),
+             'Installer et redémarrer : lancer_installation appelé une fois avec ce chemin, après la fermeture')
+    H = MainWindow(RACINE); H.show()
+    H._sur_modification()
+    REPONSES['question'] = QMessageBox.Cancel
+    MESSAGES.clear(); appels['lancer'].clear()
+    H.installer_maj(exe)
+    verifier(dernier('question') and not appels['lancer'] and H.isVisible() and H._installateur is None,
+             'projet modifié, « Annuler » : lancer_installation non appelé, fenêtre ouverte')
+    REPONSES['question'] = QMessageBox.Discard
+
+    def lancer_impossible(chemin):
+        raise U.ErreurMiseAJour(f'Installateur introuvable : {chemin}')
+
+    U.lancer_installation = lancer_impossible
+    I = MainWindow(RACINE); I.show()
+    MESSAGES.clear()
+    I.installer_maj(exe)
+    verifier(dernier() == ('warning', 'Mise à jour', f'Installateur introuvable : {exe}') and I.isVisible()
+             and I._installateur is None, 'lancer_installation en erreur : avertissement, fenêtre ouverte')
+    for fen in (H, I):
+        fen.setWindowModified(False); fen.close()
+    QDialog.exec = exec_dialog
+    U.chercher, U.telecharger, U.lancer_installation = origines
+
+    application.verifier(os.path.join(tmp, 'verif'))
+    with open(os.path.join(tmp, 'verif', 'verification.txt'), encoding='utf-8') as f:
+        lignes = f.read().splitlines()
+    verifier(lignes[2:3] == ['OK module de mise à jour et certificats HTTPS'],
+             '--verifier : « OK module de mise à jour et certificats HTTPS » avant les exports')
+
     print()
     print(f'{len(ECHECS)} échec(s)' if ECHECS else 'Recette interface : tout est OK')
     QSettings().clear()
